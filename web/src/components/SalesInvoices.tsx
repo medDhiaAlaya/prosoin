@@ -103,7 +103,7 @@ const SalesInvoices = () => {
             <div className="text-center py-8 text-gray-500">
               <Receipt className="w-12 h-12 mx-auto mb-4 text-gray-300" />
               <p>{t('invoices.noInvoices')}</p>
-              <p className="text-sm mt-2">ستظهر الفواتير هنا بعد إتمام عمليات البيع</p>
+              <p className="text-sm mt-2"></p>
             </div>
           ) : (
             <div className="space-y-4">

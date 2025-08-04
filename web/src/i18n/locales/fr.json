@@ -17,7 +17,8 @@
     "warning": "Avertissement",
     "info": "Information",
     "generate": "Générer",
-    "color": "Couleur"
+    "color": "Couleur",
+    "logout": "Déconnexion"
   },
   "navigation": {
     "pos": "Point de Vente",
@@ -27,7 +28,7 @@
     "reports": "Rapports"
   },
   "header": {
-    "title": "Système de Point de Vente",
+    "title": "Système de Prosoin",
     "subtitle": "Gestion Intelligente des Ventes et des Stocks"
   },
   "sales": {

@@ -50,11 +50,13 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
         <div className="bg-white rounded-2xl shadow-xl p-8">
           {/* Header */}
           <div className="text-center mb-8">
-            <div className="mx-auto h-12 w-12 bg-indigo-600 rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-6 w-6 text-white" />
+            <div>
+              <img
+                src="../public/logo.jpeg"
+                alt="ProSoin Logo"
+                className="mx-auto h-30 w-30 mb-4"
+              />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900">Welcome back</h2>
-            <p className="text-gray-600 mt-2">Please sign in to your account</p>
           </div>
 
           {/* Form */}
@@ -121,23 +123,6 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
               </div>
             )}
 
-            {/* Remember Me & Forgot Password */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember-me"
-                  name="remember-me"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="remember-me" className="ml-2 block text-sm text-gray-700">
-                  Remember me
-                </label>
-              </div>
-              <button type="button" className="text-sm text-indigo-600 hover:text-indigo-500 font-medium">
-                Forgot password?
-              </button>
-            </div>
 
             {/* Submit Button */}
             <button
@@ -157,21 +142,12 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           </form>
 
           {/* Footer */}
-          <div className="mt-6 text-center">
-            <p className="text-sm text-gray-600">
-              {"Don't have an account? "}
-              <button className="font-medium text-indigo-600 hover:text-indigo-500">Sign up</button>
-            </p>
-          </div>
+          
         </div>
 
         {/* Additional Info */}
         <div className="text-center">
-          <p className="text-xs text-gray-500">
-            By signing in, you agree to our <button className="underline hover:text-gray-700">Terms of Service</button>
-            {" and "}
-            <button className="underline hover:text-gray-700">Privacy Policy</button>
-          </p>
+       
         </div>
       </div>
     </div>
