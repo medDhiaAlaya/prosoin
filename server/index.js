@@ -50,4 +50,3 @@ const server = app.listen(port, () => {
   console.log(`Serveur démarré sur http://localhost:${port}`);
 });
 
-//RealTimeController.config(server);

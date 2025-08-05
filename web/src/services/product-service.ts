@@ -6,7 +6,7 @@ export interface IProduct {
   price: number;
   stock: number;
   barcode?: string;
-  category: string;
+  ref?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -16,7 +16,7 @@ export interface ICreateProduct {
   price: number;
   stock: number;
   barcode?: string;
-  category: string;
+  ref?: string;
 }
 
 const productService = {

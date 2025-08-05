@@ -4,7 +4,7 @@ import { BadRequestError, NotFoundError } from "../helpers/errors.js";
 const productController = {
   createProduct: async (req, res, next) => {
     try {
-      const { name, price, stock, barcode, category } = req.body;
+      const { name, price, stock, barcode, ref } = req.body;
 
       if (barcode) {
         const existingProduct = await Product.findOne({ barcode });
@@ -18,7 +18,7 @@ const productController = {
         price,
         stock,
         barcode,
-        category
+        ref
       });
 
       return res.status(201).json({
@@ -32,7 +32,7 @@ const productController = {
 
   getAllProducts: async (req, res, next) => {
     try {
-      const products = await Product.find().populate("category");
+      const products = await Product.find();
       return res.status(200).json({
         message: "Success",
         products
@@ -45,7 +45,7 @@ const productController = {
   getProductById: async (req, res, next) => {
     try {
       const { id } = req.params;
-      const product = await Product.findById(id).populate("category");
+      const product = await Product.findById(id);
       
       if (!product) {
         throw new NotFoundError("Product not found");
@@ -79,7 +79,7 @@ const productController = {
         id,
         updates,
         { new: true, runValidators: true }
-      ).populate("category");
+      );
 
       if (!product) {
         throw new NotFoundError("Product not found");
@@ -114,7 +114,7 @@ const productController = {
   getProductByBarcode: async (req, res, next) => {
     try {
       const { barcode } = req.params;
-      const product = await Product.findOne({ barcode }).populate("category");
+      const product = await Product.findOne({ barcode });
 
       if (!product) {
         throw new NotFoundError("Product not found");

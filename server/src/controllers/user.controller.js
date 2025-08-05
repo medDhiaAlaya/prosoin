@@ -16,27 +16,7 @@ import UserModel from "../models/User.model.js";
 import deleteFiles from "../helpers/delete_files.js";
 
 const userController = {
-  getAllClients: async (req, res, next) => {
-    try {
-      const clients = await UserModel.find({ role: "CLIENT" }).select(
-        "-password"
-      );
-      return res.status(200).json({ message: "Success!", clients });
-    } catch (err) {
-      next(err);
-    }
-  },
 
-  getAllTechniciens: async (req, res, next) => {
-    try {
-      const techniciens = await UserModel.find({ role: "TECHNICIEN" }).select(
-        "-password"
-      );
-      return res.status(200).json({ message: "Success!", techniciens });
-    } catch (err) {
-      next(err);
-    }
-  },
 
   register: async (req, res, next) => {
     try {

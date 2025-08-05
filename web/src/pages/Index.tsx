@@ -65,8 +65,9 @@ const Index = () => {
       <div className="container mx-auto px-4 py-6">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
           {/* Navigation Tabs */}
-          <TabsList className="grid w-full grid-cols-5 bg-white/60 backdrop-blur-sm border border-blue-100 h-16">
-            <TabsTrigger 
+          <TabsList className="grid w-full grid-cols-2 bg-white/60 backdrop-blur-sm border border-blue-100 h-16">
+            
+            {/* <TabsTrigger 
               value="reports"
               className="flex-col gap-1 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white"
             >
@@ -87,6 +88,7 @@ const Index = () => {
               <Receipt className="w-5 h-5" />
               <span className="text-xs">{t('navigation.salesInvoices')}</span>
             </TabsTrigger>
+           */}
             <TabsTrigger 
               value="products"
               className="flex-col gap-1 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white"

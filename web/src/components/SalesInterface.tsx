@@ -1,11 +1,10 @@
-
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, Barcode, Plus, Minus, Trash2, Printer, Receipt } from "lucide-react";
+import { Search, Barcode, Plus, Minus, Trash2, Printer, Receipt, List, Grid } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
@@ -21,6 +20,8 @@ const SalesInterface = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<IProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCardView, setIsCardView] = useState(true);
+
   const { toast } = useToast();
   const { t } = useTranslation();
 
@@ -35,70 +36,66 @@ const SalesInterface = () => {
       setProducts(response.products);
     } catch (error) {
       toast({
-        title: t('errors.loadError'),
-        description: t('errors.general'),
-        variant: "destructive"
+        title: t("errors.loadError"),
+        description: t("errors.general"),
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const addToCart = async (product: IProduct) => {
-    // Check if we have enough stock
-    const existingItem = cart.find(item => item._id === product._id);
+  const addToCart = (product: IProduct) => {
+    const existingItem = cart.find((item) => item._id === product._id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
-    
+
     if (currentQuantity + 1 > product.stock) {
       toast({
-        title: t('errors.stockError'),
-        description: t('errors.insufficientStock'),
-        variant: "destructive"
+        title: t("errors.stockError"),
+        description: t("errors.insufficientStock"),
+        variant: "destructive",
       });
       return;
     }
 
     if (existingItem) {
-      setCart(cart.map(item => 
-        item._id === product._id 
-          ? { ...item, quantity: item.quantity + 1 }
-          : item
-      ));
+      setCart(
+        cart.map((item) =>
+          item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+        )
+      );
     } else {
       setCart([...cart, { ...product, quantity: 1 }]);
     }
-    
+
     toast({
-      title: t('sales.productAdded'),
-      description: `${product.name} ${t('sales.addToCart')}`,
+      title: t("sales.productAdded"),
+      description: `${product.name} ${t("sales.addToCart")}`,
     });
   };
 
-  const updateQuantity = async (id: string, newQuantity: number) => {
-    const item = cart.find(item => item._id === id);
+  const updateQuantity = (id: string, newQuantity: number) => {
+    const item = cart.find((item) => item._id === id);
     if (!item) return;
 
     if (newQuantity <= 0) {
-      setCart(cart.filter(item => item._id !== id));
+      setCart(cart.filter((item) => item._id !== id));
     } else {
-      // Check if we have enough stock
       if (newQuantity > item.stock) {
         toast({
-          title: t('errors.stockError'),
-          description: t('errors.insufficientStock'),
-          variant: "destructive"
+          title: t("errors.stockError"),
+          description: t("errors.insufficientStock"),
+          variant: "destructive",
         });
         return;
       }
 
-      setCart(cart.map(item => 
-        item._id === id ? { ...item, quantity: newQuantity } : item
-      ));
+      setCart(cart.map((item) => (item._id === id ? { ...item, quantity: newQuantity } : item)));
     }
   };
 
   const removeFromCart = (id: string) => {
-    setCart(cart.filter(item => item._id !== id));
+    setCart(cart.filter((item) => item._id !== id));
   };
 
   const handleBarcodeSubmit = async (e: React.FormEvent) => {
@@ -110,78 +107,371 @@ const SalesInterface = () => {
         setBarcode("");
       } else {
         toast({
-          title: t('errors.general'),
-          description: t('products.noProducts'),
-          variant: "destructive"
+          title: t("errors.general"),
+          description: t("products.noProducts"),
+          variant: "destructive",
         });
       }
     } catch (error) {
       toast({
-        title: t('errors.general'),
-        description: t('errors.tryAgain'),
-        variant: "destructive"
+        title: t("errors.general"),
+        description: t("errors.tryAgain"),
+        variant: "destructive",
       });
     }
   };
 
   const calculateTotal = () => {
-    return cart.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
   type PaymentMethod = "cash" | "card";
 
-const handleCheckout = async () => {
+  const handleCheckout = async () => {
     if (cart.length === 0) {
       toast({
-        title: t('sales.noProducts'),
-        description: t('sales.cart'),
-        variant: "destructive"
+        title: t("sales.noProducts"),
+        description: t("sales.cart"),
+        variant: "destructive",
       });
       return;
     }
 
     try {
       setIsLoading(true);
-      
-      // Prepare sale data
-      const saleData: { items: { product: string; quantity: number; price: number; }[]; paymentMethod: PaymentMethod } = {
-        items: cart.map(item => ({
+
+      const saleData: {
+        items: { product: string; quantity: number; price: number }[];
+        paymentMethod: PaymentMethod;
+      } = {
+        items: cart.map((item) => ({
           product: item._id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
         })),
-        paymentMethod: "cash"
+        paymentMethod: "cash",
       };
 
-      // Create sale
       const response = await saleService.create(saleData);
-      
+
       toast({
-        title: t('sales.saleCompleted'),
-        description: `${t('sales.invoiceNumber')}: ${response.sale.invoiceNumber} - ${t('sales.amount')}: ${calculateTotal().toFixed(2)} ${t('common.currency')}`,
+        title: t("sales.saleCompleted"),
+        description: `${t("sales.invoiceNumber")}: ${response.sale.invoiceNumber} - ${t(
+          "sales.amount"
+        )}: ${calculateTotal().toFixed(2)} ${t("common.currency")}`,
       });
-      
-      // Clear cart and refresh products
-      setCart([]);
+
       await loadProducts();
+      setCart([]);
     } catch (error) {
       toast({
-        title: t('errors.general'),
-        description: t('errors.tryAgain'),
-        variant: "destructive"
+        title: t("errors.general"),
+        description: t("errors.tryAgain"),
+        variant: "destructive",
       });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const filteredProducts = products.filter(product =>
+  const printReceipt = () => {
+    const receiptWindow = window.open("", "_blank", "width=400,height=600");
+    const now = new Date();
+    const total = calculateTotal();
+
+const receiptHTML = `
+<html>
+<head>
+  <title>Facture ProSoin</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background: #f0f2f5;
+      padding: 30px;
+      max-width: 900px;
+      margin: auto;
+      position: relative;
+    }
+
+    /* Watermark */
+    body::before {
+      content: "";
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: url('${window.location.origin}/logo.jpeg') no-repeat center;
+      background-size: 300px;
+      opacity: 0.05;
+      width: 600px;
+      height: 600px;
+      z-index: 0;
+    }
+
+    .invoice-container {
+      background: white;
+      padding: 25px 30px;
+      border-radius: 8px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 3px solid #0d6efd;
+      padding-bottom: 15px;
+      margin-bottom: 20px;
+    }
+    .header img {
+      height: 70px;
+    }
+    .store-info {
+      text-align: right;
+    }
+    .store-info h2 {
+      color: #0d6efd;
+      margin: 0;
+      font-size: 26px;
+    }
+    .store-info p {
+      margin: 2px 0;
+      font-size: 12px;
+      color: #555;
+    }
+
+    /* Client & Invoice Info */
+    .info-section {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      font-size: 14px;
+      background: #f8f9fa;
+      padding: 12px 15px;
+      border-radius: 6px;
+    }
+    .info-section div {
+      width: 48%;
+    }
+
+    /* Enhanced Table Styling */
+    .invoice-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      margin: 20px 0;
+      font-size: 14px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    
+    .invoice-table thead th {
+      background-color: #0d6efd;
+      color: white;
+      padding: 12px 10px;
+      text-align: center;
+      font-weight: 600;
+      border: none;
+      position: sticky;
+      top: 0;
+    }
+    
+    .invoice-table tbody td {
+      padding: 10px;
+      border-bottom: 1px solid #e0e0e0;
+      text-align: center;
+      vertical-align: middle;
+    }
+    
+    .invoice-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .invoice-table tbody tr:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .invoice-table tfoot td {
+      padding: 12px 10px;
+      font-weight: bold;
+      background: #f8f9fa;
+      border-top: 2px solid #0d6efd;
+      border-bottom: none;
+    }
+    
+    .invoice-table .total-label {
+      text-align: right;
+      padding-right: 15px;
+    }
+    
+    .invoice-table .total-value {
+      font-size: 15px;
+      color: #0d6efd;
+    }
+    
+    .price-cell {
+      font-family: 'Courier New', monospace;
+      font-weight: 500;
+    }
+    
+    .invoice-table tbody tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+
+    /* Signatures */
+    .signature-container {
+      margin-top: 40px;
+      display: flex;
+      justify-content: space-between;
+    }
+    .signature-box {
+      width: 220px;
+      height: 80px;
+      border: 1px dashed #ccc;
+      border-radius: 4px;
+      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      color: #666;
+      background: #f8f9fa;
+    }
+
+    /* Footer */
+    .footer {
+      margin-top: 40px;
+      border-top: 3px solid #0d6efd;
+      padding-top: 15px;
+      display: flex;
+      justify-content: space-around;
+      font-size: 12px;
+      color: #555;
+      background: #f8f9fa;
+      padding: 12px;
+      border-radius: 6px;
+    }
+    .footer div {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Print Specific Styles */
+    @media print {
+      body {
+        background: none;
+        padding: 0;
+      }
+      .invoice-container {
+        box-shadow: none;
+        border: none;
+        padding: 0;
+      }
+      body::before {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="invoice-container">
+
+    <!-- Header -->
+    <div class="header">
+      <img src="${window.location.origin}/logo.jpeg" alt="ProSoin Logo"/>
+      <div class="store-info">
+        <h2>ProSoin</h2>
+        <p>Santé et Bien-être</p>
+        <p>Gabès, Tunisie</p>
+      </div>
+    </div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+      <div>
+        <p><strong>Client :</strong> ____________________</p>
+        <p><strong>Téléphone :</strong> ___________________</p>
+      </div>
+      <div style="text-align:right;">
+        <p><strong>Date :</strong> ${now.toLocaleString()}</p>
+        <p><strong>N° Facture :</strong> ####</p>
+      </div>
+    </div>
+
+    <!-- Product Table -->
+    <table class="invoice-table">
+      <thead>
+        <tr>
+          <th style="border-radius: 4px 0 0 0;">Réf</th>
+          <th>Article</th>
+          <th>Qté</th>
+          <th>Prix (DT)</th>
+          <th style="border-radius: 0 4px 0 0;">Total (DT)</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${cart.map(item => `
+          <tr>
+            <td>${item.ref || "-"}</td>
+            <td style="text-align: left;">${item.name}</td>
+            <td>${item.quantity}</td>
+            <td class="price-cell">${item.price.toFixed(2)}</td>
+            <td class="price-cell">${(item.price * item.quantity).toFixed(2)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+      <tfoot>
+        <tr>
+          <td colspan="4" class="total-label">Total TTC</td>
+          <td class="total-value price-cell">${total.toFixed(2)} DT</td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <!-- Signatures -->
+    <div class="signature-container">
+      <div class="signature-box">Signature Vendeur</div>
+      <div class="signature-box">Signature Client</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      <div>📧 contact@prosoin.com</div>
+      <div>📞 +216 00 000 000</div>
+      <div>📍 Gabès, Tunisie</div>
+    </div>
+
+  </div>
+
+  <script>
+    window.print();
+    window.close();
+  </script>
+</body>
+</html>
+`;
+
+
+
+
+    receiptWindow?.document.write(receiptHTML);
+    receiptWindow?.document.close();
+  };
+
+  const handlePrint = async () => {
+    await handleCheckout();
+    printReceipt();
+  };
+
+  const filteredProducts = products.filter((product) =>
     product.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
     <div className="space-y-6">
-      {/* Main Sales Interface */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
@@ -190,7 +480,7 @@ const handleCheckout = async () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
                 <Barcode className="w-5 h-5" />
-                {t('sales.searchProducts')}
+                {t("sales.searchProducts")}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -198,55 +488,96 @@ const handleCheckout = async () => {
                 <Input
                   value={barcode}
                   onChange={(e) => setBarcode(e.target.value)}
-                  placeholder={t('sales.searchProducts')}
+                  placeholder={t("sales.searchProducts")}
                   className="flex-1 text-center font-mono text-lg"
                   autoFocus
                 />
                 <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
-                  {t('common.add')}
+                  {t("common.add")}
                 </Button>
               </form>
             </CardContent>
           </Card>
 
-          {/* Products Grid */}
+          {/* Products Grid/List */}
           <Card className="bg-white/60 backdrop-blur-sm border-blue-100">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-blue-800">
-                <Search className="w-5 h-5" />
-                {t('sales.searchProducts')}
-              </CardTitle>
+              <div className="flex justify-between items-center">
+                <CardTitle className="flex items-center gap-2 text-blue-800">
+                  <Search className="w-5 h-5" />
+                  {t("sales.searchProducts")}
+                </CardTitle>
+                <Button variant="outline" size="sm" onClick={() => setIsCardView(!isCardView)}>
+                  {isCardView ? <List className="w-4 h-4 mr-1" /> : <Grid className="w-4 h-4 mr-1" />}
+                  {isCardView ? "List" : "Cards"}
+                </Button>
+              </div>
               <Input
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder={t('sales.searchProducts')}
+                placeholder={t("sales.searchProducts")}
                 className="mt-2"
               />
             </CardHeader>
             <CardContent>
               {isLoading ? (
                 <div className="text-center py-8">
-                  <div className="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-blue-600 rounded-full" role="status">
+                  <div
+                    className="animate-spin inline-block w-8 h-8 border-4 border-current border-t-transparent text-blue-600 rounded-full"
+                    role="status"
+                  >
                     <span className="sr-only">Loading...</span>
                   </div>
                 </div>
-              ) : (
+              ) : isCardView ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {filteredProducts.map((product) => (
-                    <Card 
+                    <Card
                       key={product._id}
                       className="cursor-pointer hover:shadow-lg transition-all duration-200 border-blue-100 hover:border-blue-300"
                       onClick={() => addToCart(product)}
                     >
                       <CardContent className="p-4 text-center">
-                        <h3 className="font-semibold text-gray-800 mb-2">{product.name}</h3>
-                        <p className="text-lg font-bold text-blue-600 mb-2">{product.price} {t('common.currency')}</p>
+                        <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
+                        <p className="text-xs text-gray-500 mb-1">Ref: {product.ref || product._id}</p>
+                        <p className="text-lg font-bold text-blue-600 mb-2">
+                          {product.price} {t("common.currency")}
+                        </p>
                         <Badge variant="secondary" className="text-xs">
-                          {t('products.stock')}: {product.stock}
+                          {t("products.stock")}: {product.stock}
                         </Badge>
                       </CardContent>
                     </Card>
                   ))}
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full text-sm border">
+                    <thead className="bg-blue-50">
+                      <tr>
+                        <th className="px-4 py-2 text-left">{t("products.reference")}</th>
+                        <th className="px-4 py-2 text-left">{t("products.productName")}</th>
+                        <th className="px-4 py-2 text-left">{t("products.price")}</th>
+                        <th className="px-4 py-2 text-left">{t("products.stock")}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredProducts.map((product) => (
+                        <tr
+                          key={product._id}
+                          className="border-t hover:bg-gray-50 cursor-pointer"
+                          onClick={() => addToCart(product)}
+                        >
+                          <td className="px-4 py-2">{product.ref || product._id}</td>
+                          <td className="px-4 py-2">{product.name}</td>
+                          <td className="px-4 py-2 text-blue-600 font-bold">
+                            {product.price} {t("common.currency")}
+                          </td>
+                          <td className="px-4 py-2">{product.stock}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
               )}
             </CardContent>
@@ -259,12 +590,12 @@ const handleCheckout = async () => {
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
                 <Receipt className="w-5 h-5" />
-                {t('sales.cart')}
+                {t("sales.cart")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">{t('sales.noProducts')}</p>
+                <p className="text-center text-gray-500 py-8">{t("sales.noProducts")}</p>
               ) : (
                 <>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
@@ -272,7 +603,9 @@ const handleCheckout = async () => {
                       <div key={item._id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
                         <div className="flex-1">
                           <h4 className="font-semibold text-gray-800">{item.name}</h4>
-                          <p className="text-sm text-blue-600">{item.price} {t('common.currency')}</p>
+                          <p className="text-sm text-blue-600">
+                            {item.price} {t("common.currency")}
+                          </p>
                         </div>
                         <div className="flex items-center gap-2">
                           <Button
@@ -304,30 +637,33 @@ const handleCheckout = async () => {
                       </div>
                     ))}
                   </div>
-                  
+
                   <Separator />
-                  
+
                   <div className="space-y-3">
                     <div className="flex justify-between items-center text-lg font-bold">
-                      <span>{t('sales.total')}:</span>
-                      <span className="text-blue-600">{calculateTotal().toFixed(2)} {t('common.currency')}</span>
+                      <span>{t("sales.total")}:</span>
+                      <span className="text-blue-600">
+                        {calculateTotal().toFixed(2)} {t("common.currency")}
+                      </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-2">
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         className="border-blue-200 hover:bg-blue-50"
+                        onClick={handlePrint}
                         disabled={isLoading || cart.length === 0}
                       >
                         <Printer className="w-4 h-4 mr-2" />
-                        {t('sales.printReceipt')}
+                        {t("sales.printReceipt")}
                       </Button>
-                      <Button 
+                      <Button
                         onClick={handleCheckout}
                         className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                         disabled={isLoading || cart.length === 0}
                       >
-                        {t('sales.checkout')}
+                        {t("sales.checkout")}
                       </Button>
                     </div>
                   </div>

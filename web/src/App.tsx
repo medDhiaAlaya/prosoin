@@ -6,35 +6,22 @@ import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-route
 import Index from "./pages/Index";
 import Login from "./pages/Login";
 import './i18n';
-import { useEffect, useState } from "react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem('authToken');
+  const token = localStorage.getItem("authToken");
   const location = useLocation();
-  
+
   if (!token) {
-    // Redirect to login page with the return url
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
-  
+
   return <>{children}</>;
 };
 
 const queryClient = new QueryClient();
 
 const App = () => {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return !!localStorage.getItem('authToken');
-  });
-
-  useEffect(() => {
-    const handleStorageChange = () => {
-      setIsAuthenticated(!!localStorage.getItem('token'));
-    };
-
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+  const isAuthenticated = !!localStorage.getItem("authToken");
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -43,15 +30,31 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/dashboard" /> : <Login />
-            } />
-            <Route path="/dashboard" element={
-              <ProtectedRoute>
-                <Index />
-              </ProtectedRoute>
-            } />
-            <Route path="/" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+            {/* Login Page */}
+            <Route
+              path="/login"
+              element={
+                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
+              }
+            />
+
+            {/* Dashboard Protected */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* Default Redirect */}
+            <Route
+              path="/"
+              element={
+                <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+              }
+            />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>

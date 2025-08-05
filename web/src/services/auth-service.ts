@@ -52,27 +52,12 @@ class AuthService {
    * Logout user and clear stored token
    */
   async logout(): Promise<void> {
-    try {
-      // Call logout endpoint if your backend requires it
-      if (this.token) {
-        await fetch(`${this.baseURL}/auth/logout`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${this.token}`,
-            "Content-Type": "application/json",
-          },
-        }).catch(() => {
-          // Ignore logout endpoint errors - still clear local token
-        })
-      }
-    } finally {
-      // Always clear local token regardless of API call success
-      this.token = null
-      if (typeof window !== "undefined") {
-        localStorage.removeItem("authToken")
-      }
-    }
+  this.token = null;
+
+  if (typeof window !== "undefined") {
+    localStorage.removeItem("authToken");
   }
+}
 
   /**
    * Get current auth token
