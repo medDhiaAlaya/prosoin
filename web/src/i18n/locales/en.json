@@ -17,6 +17,7 @@
     "warning": "Warning",
     "info": "Info",
     "generate": "Generate",
+    "unknown": "Unknown",
     "color": "Color"
   },
   "navigation": {
@@ -32,12 +33,31 @@
   },
   "sales": {
     "title": "Point of Sale",
+    "customerType": "Customer Type",
+    "totalAfterDiscount": "Total After Discount",
+    "missingInfo": "Missing information",
+    "nameRequired": "Customer name is required",
+    "selectCustomer": "Select Customer",
+    "paymentMethod": "Payment Method",
+    "cash": "Cash",
+    "card": "Card",
+    "customerSales": "Customer Sales",
+    "customerSalesNumber": "Customer Sales Number",
+    "existingCustomer": "Existing Customer",
+    "loadError": "An error occurred",
+    "newCustomer": "New Customer",
+    "customerName": "Customer Name",
+    "customerEmail": "Customer Email",
+    "customerPhone": "Customer Phone",
+    "confirmCheckout": "Confirm Checkout",
     "searchProducts": "Search Products",
     "addToCart": "Add to Cart",
     "cart": "Shopping Cart",
+    "history": "Sales History",
     "total": "Total",
     "checkout": "Checkout",
     "invoiceNumber": "Invoice Number",
+    "walkInCustomer": "Walk-In Customer",
     "amount": "Amount",
     "noProducts": "No products in cart",
     "clearCart": "Clear Cart",
@@ -69,6 +89,7 @@
     "description": "Description",
     "descriptionPlaceholder": "Enter product description",
     "image": "Product Image",
+    "itemsFound": "Items Found",
     "actions": "Actions",
     "noProducts": "No products found",
     "productAdded": "Product added successfully",
@@ -170,4 +191,4 @@
     "dataSaved": "Data saved successfully",
     "dataNotSaved": "Data not saved"
   }
-} 
+}

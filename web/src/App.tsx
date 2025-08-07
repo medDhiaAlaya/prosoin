@@ -2,20 +2,29 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  useLocation,
+} from "react-router-dom";
 import Index from "./pages/Index";
 import Login from "./pages/Login";
-import './i18n';
+import "./i18n";
+import { useEffect, useState } from "react";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  const token = localStorage.getItem("authToken");
-  const location = useLocation();
-
-  if (!token) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
-  }
-
-  return <>{children}</>;
+  const [token, setToken] = useState<string | null>(null);
+  useEffect(() => {
+    const isAuthenticated = localStorage.getItem("authToken");
+    if (!isAuthenticated) {
+      window.location.href = "/login";
+    }else {
+      setToken(isAuthenticated);
+    }
+  }, []);
+  return <>{token ? children : <></>}</>;
 };
 
 const queryClient = new QueryClient();
@@ -34,7 +43,11 @@ const App = () => {
             <Route
               path="/login"
               element={
-                isAuthenticated ? <Navigate to="/dashboard" replace /> : <Login />
+                isAuthenticated ? (
+                  <Navigate to="/dashboard" replace />
+                ) : (
+                  <Login />
+                )
               }
             />
 
@@ -52,7 +65,10 @@ const App = () => {
             <Route
               path="/"
               element={
-                <Navigate to={isAuthenticated ? "/dashboard" : "/login"} replace />
+                <Navigate
+                  to={isAuthenticated ? "/dashboard" : "/login"}
+                  replace
+                />
               }
             />
           </Routes>

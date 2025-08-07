@@ -10,6 +10,7 @@ import productRoutes from "./src/routes/product.routes.js";
 import categoryRoutes from "./src/routes/category.routes.js";
 import saleRoutes from "./src/routes/sale.routes.js";
 import purchaseRoutes from "./src/routes/purchase.routes.js";
+import customerRoutes from "./src/routes/customer.routes.js";
 
 
 dotenv.config();
@@ -35,6 +36,7 @@ app.use(cors());
 
 // Routes
 app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/customers", customerRoutes);
 app.use("/api/v1/products", productRoutes);
 app.use("/api/v1/categories", categoryRoutes);
 app.use("/api/v1/sales", saleRoutes);

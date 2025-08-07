@@ -9,7 +9,9 @@ router.use(Auth.verifyToken);
 
 router.route("/")
   .post(saleController.createSale)
-  .get(saleController.getAllSales);
+  // .get(saleController.getAllSales);
+
+router.route("/me").get(saleController.getSalesByUser);
 
 router.get("/report", saleController.getSalesReport);
 

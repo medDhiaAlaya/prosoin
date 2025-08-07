@@ -4,23 +4,35 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Search, Barcode, Plus, Minus, Trash2, Printer, Receipt, List, Grid } from "lucide-react";
+import {
+  Search,
+  Barcode,
+  Plus,
+  Minus,
+  Trash2,
+  Printer,
+  Receipt,
+  List,
+  Grid,
+} from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
 import { productService, saleService, IProduct } from "@/services";
+import SalesCheckout from "./SalesCheckout";
 
 interface CartItem extends IProduct {
   quantity: number;
 }
 
-const SalesInterface = () => {
+const SalesInterface = ({ setActiveTab }) => {
   const [barcode, setBarcode] = useState("");
   const [cart, setCart] = useState<CartItem[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<IProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isCardView, setIsCardView] = useState(true);
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -45,6 +57,18 @@ const SalesInterface = () => {
     }
   };
 
+  const handleCheckoutOpen = () => {
+    if (cart.length === 0) {
+      toast({
+        title: t("sales.noProducts"),
+        description: t("sales.cart"),
+        variant: "destructive",
+      });
+      return;
+    }
+    setCheckoutOpen(true);
+  }
+
   const addToCart = (product: IProduct) => {
     const existingItem = cart.find((item) => item._id === product._id);
     const currentQuantity = existingItem ? existingItem.quantity : 0;
@@ -61,7 +85,9 @@ const SalesInterface = () => {
     if (existingItem) {
       setCart(
         cart.map((item) =>
-          item._id === product._id ? { ...item, quantity: item.quantity + 1 } : item
+          item._id === product._id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         )
       );
     } else {
@@ -90,7 +116,11 @@ const SalesInterface = () => {
         return;
       }
 
-      setCart(cart.map((item) => (item._id === id ? { ...item, quantity: newQuantity } : item)));
+      setCart(
+        cart.map((item) =>
+          item._id === id ? { ...item, quantity: newQuantity } : item
+        )
+      );
     }
   };
 
@@ -125,44 +155,35 @@ const SalesInterface = () => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
-  type PaymentMethod = "cash" | "card";
 
-  const handleCheckout = async () => {
-    if (cart.length === 0) {
-      toast({
-        title: t("sales.noProducts"),
-        description: t("sales.cart"),
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleCheckout = async (data) => {
 
     try {
       setIsLoading(true);
 
-      const saleData: {
-        items: { product: string; quantity: number; price: number }[];
-        paymentMethod: PaymentMethod;
-      } = {
+      const saleData = {
         items: cart.map((item) => ({
           product: item._id,
           quantity: item.quantity,
           price: item.price,
         })),
-        paymentMethod: "cash",
+        ...data,
       };
 
       const response = await saleService.create(saleData);
 
       toast({
         title: t("sales.saleCompleted"),
-        description: `${t("sales.invoiceNumber")}: ${response.sale.invoiceNumber} - ${t(
-          "sales.amount"
-        )}: ${calculateTotal().toFixed(2)} ${t("common.currency")}`,
+        description: `${t("sales.invoiceNumber")}: ${
+          response.sale.invoiceNumber
+        } - ${t("sales.amount")}: ${calculateTotal().toFixed(2)} ${t(
+          "common.currency"
+        )}`,
       });
 
       await loadProducts();
       setCart([]);
+      setCheckoutOpen(false);
     } catch (error) {
       toast({
         title: t("errors.general"),
@@ -179,7 +200,7 @@ const SalesInterface = () => {
     const now = new Date();
     const total = calculateTotal();
 
-const receiptHTML = `
+    const receiptHTML = `
 <html>
 <head>
   <title>Facture ProSoin</title>
@@ -413,15 +434,21 @@ const receiptHTML = `
         </tr>
       </thead>
       <tbody>
-        ${cart.map(item => `
+        ${cart
+          .map(
+            (item) => `
           <tr>
             <td>${item.ref || "-"}</td>
             <td style="text-align: left;">${item.name}</td>
             <td>${item.quantity}</td>
             <td class="price-cell">${item.price.toFixed(2)}</td>
-            <td class="price-cell">${(item.price * item.quantity).toFixed(2)}</td>
+            <td class="price-cell">${(item.price * item.quantity).toFixed(
+              2
+            )}</td>
           </tr>
-        `).join("")}
+        `
+          )
+          .join("")}
       </tbody>
       <tfoot>
         <tr>
@@ -454,15 +481,11 @@ const receiptHTML = `
 </html>
 `;
 
-
-
-
     receiptWindow?.document.write(receiptHTML);
     receiptWindow?.document.close();
   };
 
-  const handlePrint = async () => {
-    await handleCheckout();
+  const handlePrint = () => {
     printReceipt();
   };
 
@@ -472,6 +495,23 @@ const receiptHTML = `
 
   return (
     <div className="space-y-6">
+      {/* sales history */}
+      <div className="lg:col-span-1 space-y-6">
+        <div className="flex justify-between items-center">
+          <h2 className="text-2xl font-bold text-blue-800">
+            {t("sales.history")}
+          </h2>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setActiveTab("sales-invoices")}
+            className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+          >
+            <Receipt className="w-4 h-4 mr-1" />
+            {t("navigation.salesInvoices")}
+          </Button>
+        </div>
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
@@ -492,7 +532,10 @@ const receiptHTML = `
                   className="flex-1 text-center font-mono text-lg"
                   autoFocus
                 />
-                <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
+                <Button
+                  type="submit"
+                  className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
+                >
                   {t("common.add")}
                 </Button>
               </form>
@@ -507,8 +550,16 @@ const receiptHTML = `
                   <Search className="w-5 h-5" />
                   {t("sales.searchProducts")}
                 </CardTitle>
-                <Button variant="outline" size="sm" onClick={() => setIsCardView(!isCardView)}>
-                  {isCardView ? <List className="w-4 h-4 mr-1" /> : <Grid className="w-4 h-4 mr-1" />}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCardView(!isCardView)}
+                >
+                  {isCardView ? (
+                    <List className="w-4 h-4 mr-1" />
+                  ) : (
+                    <Grid className="w-4 h-4 mr-1" />
+                  )}
                   {isCardView ? "List" : "Cards"}
                 </Button>
               </div>
@@ -538,8 +589,12 @@ const receiptHTML = `
                       onClick={() => addToCart(product)}
                     >
                       <CardContent className="p-4 text-center">
-                        <h3 className="font-semibold text-gray-800 mb-1">{product.name}</h3>
-                        <p className="text-xs text-gray-500 mb-1">Ref: {product.ref || product._id}</p>
+                        <h3 className="font-semibold text-gray-800 mb-1">
+                          {product.name}
+                        </h3>
+                        <p className="text-xs text-gray-500 mb-1">
+                          Ref: {product.ref || product._id}
+                        </p>
                         <p className="text-lg font-bold text-blue-600 mb-2">
                           {product.price} {t("common.currency")}
                         </p>
@@ -555,10 +610,18 @@ const receiptHTML = `
                   <table className="min-w-full text-sm border">
                     <thead className="bg-blue-50">
                       <tr>
-                        <th className="px-4 py-2 text-left">{t("products.reference")}</th>
-                        <th className="px-4 py-2 text-left">{t("products.productName")}</th>
-                        <th className="px-4 py-2 text-left">{t("products.price")}</th>
-                        <th className="px-4 py-2 text-left">{t("products.stock")}</th>
+                        <th className="px-4 py-2 text-left">
+                          {t("products.reference")}
+                        </th>
+                        <th className="px-4 py-2 text-left">
+                          {t("products.productName")}
+                        </th>
+                        <th className="px-4 py-2 text-left">
+                          {t("products.price")}
+                        </th>
+                        <th className="px-4 py-2 text-left">
+                          {t("products.stock")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
@@ -568,7 +631,9 @@ const receiptHTML = `
                           className="border-t hover:bg-gray-50 cursor-pointer"
                           onClick={() => addToCart(product)}
                         >
-                          <td className="px-4 py-2">{product.ref || product._id}</td>
+                          <td className="px-4 py-2">
+                            {product.ref || product._id}
+                          </td>
                           <td className="px-4 py-2">{product.name}</td>
                           <td className="px-4 py-2 text-blue-600 font-bold">
                             {product.price} {t("common.currency")}
@@ -595,14 +660,21 @@ const receiptHTML = `
             </CardHeader>
             <CardContent className="space-y-4">
               {cart.length === 0 ? (
-                <p className="text-center text-gray-500 py-8">{t("sales.noProducts")}</p>
+                <p className="text-center text-gray-500 py-8">
+                  {t("sales.noProducts")}
+                </p>
               ) : (
                 <>
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {cart.map((item) => (
-                      <div key={item._id} className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                      <div
+                        key={item._id}
+                        className="flex items-center justify-between p-3 bg-blue-50 rounded-lg"
+                      >
                         <div className="flex-1">
-                          <h4 className="font-semibold text-gray-800">{item.name}</h4>
+                          <h4 className="font-semibold text-gray-800">
+                            {item.name}
+                          </h4>
                           <p className="text-sm text-blue-600">
                             {item.price} {t("common.currency")}
                           </p>
@@ -611,16 +683,22 @@ const receiptHTML = `
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item._id, item.quantity - 1)}
+                            onClick={() =>
+                              updateQuantity(item._id, item.quantity - 1)
+                            }
                             disabled={isLoading}
                           >
                             <Minus className="w-3 h-3" />
                           </Button>
-                          <span className="w-8 text-center font-semibold">{item.quantity}</span>
+                          <span className="w-8 text-center font-semibold">
+                            {item.quantity}
+                          </span>
                           <Button
                             size="sm"
                             variant="outline"
-                            onClick={() => updateQuantity(item._id, item.quantity + 1)}
+                            onClick={() =>
+                              updateQuantity(item._id, item.quantity + 1)
+                            }
                             disabled={isLoading}
                           >
                             <Plus className="w-3 h-3" />
@@ -659,7 +737,7 @@ const receiptHTML = `
                         {t("sales.printReceipt")}
                       </Button>
                       <Button
-                        onClick={handleCheckout}
+                        onClick={handleCheckoutOpen}
                         className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
                         disabled={isLoading || cart.length === 0}
                       >
@@ -673,6 +751,12 @@ const receiptHTML = `
           </Card>
         </div>
       </div>
+      <SalesCheckout
+        open={checkoutOpen}
+        onConfirm={handleCheckout}
+        onClose={() => setCheckoutOpen(false)}
+        isLoading={isLoading}
+      />
     </div>
   );
 };

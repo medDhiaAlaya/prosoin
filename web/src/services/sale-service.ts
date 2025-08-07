@@ -21,7 +21,9 @@ export interface ISale {
     price: number;
   }>;
   total: number;
-  seller: string;
+  seller: any;
+  customer: any;
+  discount?: number;
   paymentMethod: string;
   status: 'completed' | 'cancelled' | 'pending';
   createdAt: string;
@@ -46,8 +48,8 @@ const saleService = {
     return response.data;
   },
 
-  getAll: async () => {
-    const response = await api.get('/sales');
+  getSalesByUser: async () => {
+    const response = await api.get('/sales/me');
     return response.data;
   },
 

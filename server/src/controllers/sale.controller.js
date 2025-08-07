@@ -1,16 +1,28 @@
 import Sale from "../models/Sale.model.js";
 import Product from "../models/Product.model.js";
 import { BadRequestError, NotFoundError } from "../helpers/errors.js";
+import CustomerModel from "../models/Customer.model.js";
 
 const saleController = {
   createSale: async (req, res, next) => {
     try {
-      const { items, paymentMethod } = req.body;
+      const {
+        items,
+        discount,
+        paymentMethod,
+        customerId,
+        name,
+        email,
+        phone,
+      } = req.body;
       const { userId } = req.user;
 
       // Generate invoice number
       const date = new Date();
-      const invoiceNumber = `INV-${date.toISOString().slice(0, 10).replace(/-/g, '')}-${date.getTime().toString().slice(-4)}`;
+      const invoiceNumber = `INV-${date
+        .toISOString()
+        .slice(0, 10)
+        .replace(/-/g, "")}-${date.getTime().toString().slice(-4)}`;
 
       // Calculate total and update stock
       let total = 0;
@@ -33,51 +45,74 @@ const saleController = {
         processedItems.push({
           product: item.product,
           quantity: item.quantity,
-          price: product.price
+          price: product.price,
         });
 
         // Calculate total
         total += product.price * item.quantity;
+      }
+      // Create customer if provided
+      let customer = null;
+      if (customerId) {
+        customer =  await CustomerModel.findById(customerId);
+        if (!customer) {
+          throw new NotFoundError("Customer not found");
+        }
+      } else if (name || email || phone) {
+        customer = await CustomerModel.create({
+          name,
+          email,
+          phone,
+          seller: userId,
+        });
       }
 
       const sale = await Sale.create({
         invoiceNumber,
         items: processedItems,
         total,
+        discount,
         seller: userId,
-        paymentMethod
+        customer: customer ? customer._id : null,
+        paymentMethod,
       });
+      // Update customer sales
+      if (customer) {
+        customer.sales.push(sale._id);
+        await customer.save();
+      }
 
       return res.status(201).json({
         message: "Sale created successfully",
-        sale
+        sale,
       });
     } catch (err) {
       next(err);
     }
   },
 
-  getAllSales: async (req, res, next) => {
-    try {
-      const sales = await Sale.find()
-        .populate("seller", "first_name last_name")
-        .populate("items.product", "name price");
-
-      return res.status(200).json({
-        message: "Success",
-        sales
-      });
-    } catch (err) {
-      next(err);
-    }
-  },
+  // getAllSales: async (req, res, next) => {
+  //   try {
+  //     const sales = await Sale.find()
+  //       .populate("seller", "first_name last_name")
+  //       .populate("items.product", "name price")
+  //       .populate("customer");
+  //     return res.status(200).json({
+  //       message: "Success",
+  //       sales,
+  //     });
+  //   } catch (err) {
+  //     next(err);
+  //   }
+  // },
 
   getSaleById: async (req, res, next) => {
     try {
       const { id } = req.params;
       const sale = await Sale.findById(id)
         .populate("seller", "first_name last_name")
-        .populate("items.product", "name price");
+        .populate("items.product", "name price")
+        .populate("customer");
 
       if (!sale) {
         throw new NotFoundError("Sale not found");
@@ -85,7 +120,25 @@ const saleController = {
 
       return res.status(200).json({
         message: "Success",
-        sale
+        sale,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+
+  getSalesByUser: async (req, res, next) => {
+    try {
+      const { userId } = req.user;
+      const sales = await Sale.find({ seller: userId })
+        .populate("seller", "first_name last_name")
+        .populate("items.product", "name price")
+        .populate("customer")
+        .sort({ createdAt: -1 });
+
+      return res.status(200).json({
+        message: "Success",
+        sales,
       });
     } catch (err) {
       next(err);
@@ -119,7 +172,7 @@ const saleController = {
 
       return res.status(200).json({
         message: "Sale cancelled successfully",
-        sale
+        sale,
       });
     } catch (err) {
       next(err);
@@ -134,31 +187,35 @@ const saleController = {
       if (startDate && endDate) {
         query.createdAt = {
           $gte: new Date(startDate),
-          $lte: new Date(endDate)
+          $lte: new Date(endDate),
         };
       }
 
       const sales = await Sale.find({
         ...query,
-        status: "completed"
+        status: "completed",
       })
+        .populate("seller", "first_name last_name")
         .populate("items.product", "name price")
-        .populate("seller", "first_name last_name");
+        .populate("customer");
 
       const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
-      const totalItems = sales.reduce((acc, sale) => 
-        acc + sale.items.reduce((sum, item) => sum + item.quantity, 0), 0);
+      const totalItems = sales.reduce(
+        (acc, sale) =>
+          acc + sale.items.reduce((sum, item) => sum + item.quantity, 0),
+        0
+      );
 
       // Get top selling products
       const productSales = {};
-      sales.forEach(sale => {
-        sale.items.forEach(item => {
+      sales.forEach((sale) => {
+        sale.items.forEach((item) => {
           const productId = item.product._id.toString();
           if (!productSales[productId]) {
             productSales[productId] = {
               name: item.product.name,
               quantity: 0,
-              revenue: 0
+              revenue: 0,
             };
           }
           productSales[productId].quantity += item.quantity;
@@ -177,13 +234,13 @@ const saleController = {
           totalItems,
           salesCount: sales.length,
           topProducts,
-          sales
-        }
+          sales,
+        },
       });
     } catch (err) {
       next(err);
     }
-  }
+  },
 };
 
 export default saleController;

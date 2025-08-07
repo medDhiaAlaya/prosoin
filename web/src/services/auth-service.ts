@@ -5,7 +5,7 @@ class AuthService {
 
   constructor() {
     // Replace with your actual backend URL
-    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:5001/api/v1/users"
+    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:5001/api/v1"
 
     // Check for existing token in localStorage on initialization
     if (typeof window !== "undefined") {
@@ -82,7 +82,7 @@ class AuthService {
     }
 
     try {
-      const response = await fetch(`${this.baseURL}/auth/profile`, {
+      const response = await fetch(`${this.baseURL}/users/me`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${this.token}`,
