@@ -67,7 +67,7 @@ const SalesInterface = ({ setActiveTab }) => {
       return;
     }
     setCheckoutOpen(true);
-  }
+  };
 
   const addToCart = (product: IProduct) => {
     const existingItem = cart.find((item) => item._id === product._id);
@@ -155,9 +155,7 @@ const SalesInterface = ({ setActiveTab }) => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
-
   const handleCheckout = async (data) => {
-
     try {
       setIsLoading(true);
 
@@ -195,7 +193,7 @@ const SalesInterface = ({ setActiveTab }) => {
     }
   };
 
-  const printReceipt = () => {
+  const printReceipt = (customer) => {
     const receiptWindow = window.open("", "_blank", "width=400,height=600");
     const now = new Date();
     const total = calculateTotal();
@@ -413,8 +411,16 @@ const SalesInterface = ({ setActiveTab }) => {
     <!-- Info Section -->
     <div class="info-section">
       <div>
-        <p><strong>Client :</strong> ____________________</p>
-        <p><strong>Téléphone :</strong> ___________________</p>
+        <p><strong>Client :</strong> ${
+          customer && customer.name
+            ? customer.name
+            : "____________________"
+        }</p>
+        <p><strong>Téléphone :</strong> ${
+          customer && customer.phone
+            ? customer.phone
+            : "____________________"
+        }</p>
       </div>
       <div style="text-align:right;">
         <p><strong>Date :</strong> ${now.toLocaleString()}</p>
@@ -485,8 +491,8 @@ const SalesInterface = ({ setActiveTab }) => {
     receiptWindow?.document.close();
   };
 
-  const handlePrint = () => {
-    printReceipt();
+  const handlePrint = (customer) => {
+    printReceipt(customer);
   };
 
   const filteredProducts = products.filter((product) =>
@@ -516,7 +522,7 @@ const SalesInterface = ({ setActiveTab }) => {
         {/* Products Section */}
         <div className="lg:col-span-2 space-y-6">
           {/* Barcode Scanner */}
-          <Card className="bg-white/60 backdrop-blur-sm border-blue-100">
+          {/* <Card className="bg-white/60 backdrop-blur-sm border-blue-100">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-blue-800">
                 <Barcode className="w-5 h-5" />
@@ -540,7 +546,7 @@ const SalesInterface = ({ setActiveTab }) => {
                 </Button>
               </form>
             </CardContent>
-          </Card>
+          </Card> */}
 
           {/* Products Grid/List */}
           <Card className="bg-white/60 backdrop-blur-sm border-blue-100">
@@ -726,22 +732,13 @@ const SalesInterface = ({ setActiveTab }) => {
                       </span>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        variant="outline"
-                        className="border-blue-200 hover:bg-blue-50"
-                        onClick={handlePrint}
-                        disabled={isLoading || cart.length === 0}
-                      >
-                        <Printer className="w-4 h-4 mr-2" />
-                        {t("sales.printReceipt")}
-                      </Button>
+                    <div className="w-full">
                       <Button
                         onClick={handleCheckoutOpen}
-                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600"
+                        className="bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 w-full"
                         disabled={isLoading || cart.length === 0}
                       >
-                        {t("sales.checkout")}
+                        {t("common.confirm")}
                       </Button>
                     </div>
                   </div>
@@ -756,6 +753,7 @@ const SalesInterface = ({ setActiveTab }) => {
         onConfirm={handleCheckout}
         onClose={() => setCheckoutOpen(false)}
         isLoading={isLoading}
+        printReceipt={handlePrint}
       />
     </div>
   );

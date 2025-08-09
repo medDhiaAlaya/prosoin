@@ -25,7 +25,7 @@ interface FormData {
 
 const ProductManagement = () => {
   const [products, setProducts] = useState<IProduct[]>([]);
-  const [isCardView, setIsCardView] = useState(true);
+  const [isCardView, setIsCardView] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<IProduct | null>(null);

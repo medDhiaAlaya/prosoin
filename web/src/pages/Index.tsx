@@ -31,7 +31,6 @@ const Index = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    console.log("Fetching user profile...");
     const getCurrentUser = async () => {
       try {
         const data = await authService.getUserProfile();
@@ -104,7 +103,7 @@ const Index = () => {
                 {t("common.logout")}
               </Button>
               {/* Language drop down from fr en ar */}
-              <div className="relative">
+              {/* <div className="relative">
                 <select
                   className="bg-white border border-gray-300 rounded-md p-2 text-sm cursor-pointer"
                   value={i18n.language}
@@ -116,7 +115,7 @@ const Index = () => {
                   <option value="en" className="cursor-pointer">English</option>
                   <option value="ar" className="cursor-pointer">العربية</option>
                 </select>
-              </div>
+              </div> */}
             </div>
           </div>
         </div>

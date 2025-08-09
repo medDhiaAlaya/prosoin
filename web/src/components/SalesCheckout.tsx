@@ -18,9 +18,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@radix-ui/react-select";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Printer } from "lucide-react";
 
-const SalesCheckout = ({ open, onClose, onConfirm, isLoading }) => {
+const SalesCheckout = ({
+  open,
+  onClose,
+  onConfirm,
+  isLoading,
+  printReceipt,
+}) => {
   const [customers, setCustomers] = useState([]);
   const [mode, setMode] = useState("walkin");
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -91,6 +97,27 @@ const SalesCheckout = ({ open, onClose, onConfirm, isLoading }) => {
     });
   };
 
+
+  const handleModeChange = (value) => {
+    setMode(value);
+    setSelectedCustomer("");
+    setNewCustomer({ name: "", email: "", phone: "" });
+  }
+
+  const getSelectedCustomer = () => {
+    if (mode === "walkin") return null;
+    if (mode === "existing" && selectedCustomer) {
+      return customers.find((c) => c._id === selectedCustomer);
+    }
+    if (mode === "new") {
+      return {
+        name: newCustomer.name,
+        email: newCustomer.email,
+        phone: newCustomer.phone,
+      };
+    }
+  }
+
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent>
@@ -101,7 +128,7 @@ const SalesCheckout = ({ open, onClose, onConfirm, isLoading }) => {
         <div className="space-y-4">
           <Label>{t("sales.customerType")}</Label>
           <div className="border border-gray-200 rounded-md p-2 mb-4 flex items-center gap-2">
-            <Select value={mode} onValueChange={setMode}>
+            <Select value={mode} onValueChange={handleModeChange}>
               <SelectTrigger className="w-full">
                 <SelectValue placeholder={t("sales.customerType")} />
               </SelectTrigger>
@@ -202,7 +229,7 @@ const SalesCheckout = ({ open, onClose, onConfirm, isLoading }) => {
         </div>
 
         {/* if exising client : show sales number */}
-        {mode === 'existing' && selectedCustomer && (
+        {selectedCustomer && (
           <div className="mt-4">
             <Label>{t("sales.customerSales")}</Label>
             <p className="text-sm text-gray-600">
@@ -217,6 +244,15 @@ const SalesCheckout = ({ open, onClose, onConfirm, isLoading }) => {
         <DialogFooter className="pt-4">
           <Button variant="outline" onClick={onClose} disabled={isLoading}>
             {t("common.cancel")}
+          </Button>
+          <Button
+            variant="outline"
+            className="border-blue-200 hover:bg-blue-50"
+            onClick={() => printReceipt(getSelectedCustomer())}
+            disabled={isLoading || !printReceipt}
+          >
+            <Printer className="w-4 h-4 mr-2" />
+            {t("sales.printReceipt")}
           </Button>
           <Button onClick={handleSubmit} disabled={isLoading}>
             {t("sales.confirmCheckout")}
