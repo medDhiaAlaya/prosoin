@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import logo from "@/assets/logo.jpeg";
 import {
   Search,
   Barcode,
@@ -195,16 +194,6 @@ const SalesInterface = ({ setActiveTab }) => {
   };
 
   const printReceipt = async (customer) => {
-    const logoBase64 = await fetch(logo)
-      .then((res) => res.blob())
-      .then(
-        (blob) =>
-          new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          })
-      );
     const receiptWindow = window.open("", "_blank");
     const now = new Date();
     const total = calculateTotal();
@@ -230,7 +219,7 @@ const SalesInterface = ({ setActiveTab }) => {
       top: 30%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: url('${logoBase64}') no-repeat center center;
+      background: url('http://127.0.0.1:5001/uploads/logo.jpeg') no-repeat center center;
       background-repeat: no-repeat;
       background-position: center;
       background-size: 300px;
@@ -247,6 +236,8 @@ const SalesInterface = ({ setActiveTab }) => {
       box-shadow: 0 0 15px rgba(0,0,0,0.1);
       position: relative;
       z-index: 1;
+      display: flex;
+      flex-direction: column;
     }
 
     /* Header */
@@ -299,6 +290,7 @@ const SalesInterface = ({ setActiveTab }) => {
       margin: 20px 0;
       font-size: 14px;
       box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+      flex: 1;
     }
     
     .invoice-table thead th {
@@ -415,7 +407,7 @@ const SalesInterface = ({ setActiveTab }) => {
 
     <!-- Header -->
     <div class="header">
-      <img src="${logoBase64}" alt="ProSoin Logo" />
+      <img src="http://127.0.0.1:5001/uploads/logo.jpeg" alt="ProSoin Logo" />
       <div class="store-info">
         <h2>ProSoin</h2>
         <p>Santé et Bien-être</p>
