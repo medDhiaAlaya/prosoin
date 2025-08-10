@@ -32,27 +32,11 @@ const SalesInterface = ({ setActiveTab }) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<IProduct[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCardView, setIsCardView] = useState(true);
+  const [isCardView, setIsCardView] = useState(false);
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 
   const { toast } = useToast();
   const { t } = useTranslation();
-
-  const getBase64Image = async () => {
-    try {
-      const response = await fetch(logo);
-      const blob = await response.blob();
-
-      return new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.error("Error fetching logo:", error);
-    }
-  };
 
   useEffect(() => {
     loadProducts();
@@ -174,10 +158,7 @@ const SalesInterface = ({ setActiveTab }) => {
 
   const handleCheckout = async (data, printInvoice = false) => {
     try {
-      printReceipt(data?.customer);
-      return;
       setIsLoading(true);
-
       const saleData = {
         items: cart.map((item) => ({
           product: item._id,
@@ -186,9 +167,7 @@ const SalesInterface = ({ setActiveTab }) => {
         })),
         ...data,
       };
-
       const response = await saleService.create(saleData);
-
       toast({
         title: t("sales.saleCompleted"),
         description: `${t("sales.invoiceNumber")}: ${
@@ -197,7 +176,6 @@ const SalesInterface = ({ setActiveTab }) => {
           "common.currency"
         )}`,
       });
-
       setCheckoutOpen(false);
       await loadProducts();
       setCart([]);
@@ -217,8 +195,17 @@ const SalesInterface = ({ setActiveTab }) => {
   };
 
   const printReceipt = async (customer) => {
-    const logoBase64 = await getBase64Image();
-    const receiptWindow = window.open("", "_blank", "width=400,height=600");
+    const logoBase64 = await fetch(logo)
+      .then((res) => res.blob())
+      .then(
+        (blob) =>
+          new Promise<string>((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          })
+      );
+    const receiptWindow = window.open("", "_blank");
     const now = new Date();
     const total = calculateTotal();
 
@@ -243,10 +230,9 @@ const SalesInterface = ({ setActiveTab }) => {
       top: 30%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: url('${logoBase64}');
+      background: url('${logoBase64}') no-repeat center center;
       background-repeat: no-repeat;
       background-position: center;
-      background-size: cover;
       background-size: 300px;
       opacity: 0.05;
       width: 600px;
@@ -275,7 +261,7 @@ const SalesInterface = ({ setActiveTab }) => {
     .header img {
       height: 70px;
       width: 70px;
-      border: 2px solid #000;
+      boder: 1px solid #ddd;
     }
     .store-info {
       text-align: right;
