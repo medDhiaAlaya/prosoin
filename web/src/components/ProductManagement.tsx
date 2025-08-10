@@ -172,33 +172,54 @@ const ProductManagement = () => {
     doc.save("Produits_ProSoin.pdf");
   };
 
-  const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+const handleImportCSV = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const file = event.target.files?.[0];
+  if (!file) return;
 
-    Papa.parse(file, {
-      header: true,
-      complete: async (results) => {
-        const importedProducts = results.data as any[];
-        for (let p of importedProducts) {
-          if (p.name && p.price) {
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: async (results) => {
+      const importedProducts = results.data as any[];
+      let addedCount = 0;
+
+      for (let p of importedProducts) {
+        const name = p.name?.trim();
+        const price = parseFloat((p.price || "").toString().replace(",", "."));
+        const stock = parseInt(p.stock || "0");
+        let barcode = p.barcode?.trim();
+
+        if (name && !isNaN(price)) {
+          if (!barcode) {
+            barcode = generateBarcode();
+          }
+
+          try {
             await productService.create({
-              name: p.name,
-              price: parseFloat(p.price),
-              stock: parseInt(p.stock || "0"),
-              barcode: p.barcode || "",
+              name,
+              price,
+              stock,
+              barcode,
               ref: p.ref || "",
             });
+            addedCount++;
+          } catch (error) {
+            console.error("Failed to import product:", name, error);
+            // optionally continue importing others
           }
         }
-        toast({
-          title: "Import terminé",
-          description: `${importedProducts.length} produits ajoutés.`,
-        });
-        loadData();
-      },
-    });
-  };
+      }
+
+      toast({
+        title: "Import terminé",
+        description: `${addedCount} produits ajoutés.`,
+      });
+
+      loadData();
+    },
+  });
+};
+
 
   const filteredProducts = products.filter((product) => {
     const searchLower = searchTerm.toLowerCase();
