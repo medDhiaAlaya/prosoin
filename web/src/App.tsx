@@ -13,6 +13,7 @@ import Index from "./pages/Index";
 import Login from "./pages/Login";
 import "./i18n";
 import { useEffect, useState } from "react";
+import Home from "./pages/Home";
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
@@ -39,6 +40,17 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            {/* home screen */}
+            <Route
+              path="/"
+              element={
+                isAuthenticated ? (
+                  <Navigate to="/home" replace />
+                ) : (
+                  <Home />
+                )
+              }
+            />
             {/* Login Page */}
             <Route
               path="/login"
@@ -60,6 +72,9 @@ const App = () => {
                 </ProtectedRoute>
               }
             />
+
+
+            
 
             {/* Default Redirect */}
             <Route
