@@ -5,7 +5,7 @@ class AuthService {
 
   constructor() {
     // Replace with your actual backend URL
-    this.baseURL = import.meta.env.VITE_API_URL || "http://localhost:5001/api/v1"
+    this.baseURL = import.meta.env.VITE_API_URL || "https://prosoin.com/api/v1"
 
     // Check for existing token in localStorage on initialization
     if (typeof window !== "undefined") {

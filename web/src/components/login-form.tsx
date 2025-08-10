@@ -52,7 +52,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <div className="text-center mb-8">
             <div>
               <img
-                src="../public/logo.jpeg"
+                src="../assets/logo.jpeg"
                 alt="ProSoin Logo"
                 className="mx-auto h-30 w-30 mb-4"
               />
