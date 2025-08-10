@@ -6,20 +6,15 @@ const customerSchema = new mongoose.Schema(
     name: {
       type: String,
       required: [true, "name is required!"],
-      minLength: [2, "Minimum length of name is 2 characters!"],
-      maxLength: [32, "Maximum length of name is 32 characters!"],
-      cast: "name must be a string!",
     },
     email: {
       type: String,
       unique: [true, "Email already exists!"],
-      maxLength: [50, "Maximum length of email is 50 characters!"],
-      validate: [validator.isEmail, "Invalid email!"],
-      lowercase: true,
-      cast: "email must be a string!",
+      default: "",
     },
     phone: {
       type: String,
+      default: "",
     },
     seller: {
       type: mongoose.Schema.Types.ObjectId,

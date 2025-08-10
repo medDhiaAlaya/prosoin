@@ -25,7 +25,6 @@ const SalesCheckout = ({
   onClose,
   onConfirm,
   isLoading,
-  printReceipt,
 }) => {
   const [customers, setCustomers] = useState([]);
   const [mode, setMode] = useState("walkin");
@@ -94,7 +93,7 @@ const SalesCheckout = ({
       ...customerData,
       paymentMethod,
       discount,
-    });
+    }, false);
   };
 
 
@@ -248,8 +247,8 @@ const SalesCheckout = ({
           <Button
             variant="outline"
             className="border-blue-200 hover:bg-blue-50"
-            onClick={() => printReceipt(getSelectedCustomer())}
-            disabled={isLoading || !printReceipt}
+            onClick={() => onConfirm(getSelectedCustomer(), true)}
+            disabled={isLoading}
           >
             <Printer className="w-4 h-4 mr-2" />
             {t("sales.printReceipt")}

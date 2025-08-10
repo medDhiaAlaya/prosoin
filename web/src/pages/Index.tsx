@@ -22,6 +22,7 @@ import ReportsSection from "@/components/ReportsSection";
 import SalesInvoices from "@/components/SalesInvoices";
 import { useNavigate } from "react-router-dom";
 import { authService } from "@/services/auth-service";
+import logo from "@/assets/logo.jpeg";
 import i18n from "@/i18n";
 
 const Index = () => {
@@ -58,7 +59,7 @@ const Index = () => {
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl flex items-center justify-center">
                 <img
-                  src="../assets/logo.jpeg"
+                  src={logo}
                   className="w-20 h-16 text-white"
                 />
               </div>
@@ -129,7 +130,7 @@ const Index = () => {
           className="space-y-6"
         >
           {/* Navigation Tabs */}
-          <TabsList className="grid w-full grid-cols-3 bg-white/60 backdrop-blur-sm border border-blue-100 h-16">
+          <TabsList className="grid w-full grid-cols-2 bg-white/60 backdrop-blur-sm border border-blue-100 h-16">
             {/* <TabsTrigger 
               value="reports"
               className="flex-col gap-1 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white"
@@ -159,13 +160,13 @@ const Index = () => {
               <ShoppingCart className="w-5 h-5" />
               <span className="text-xs">{t("navigation.pos")}</span>
             </TabsTrigger>
-            <TabsTrigger
+            {/* <TabsTrigger
               value="sales-invoices"
               className="flex-col gap-1 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-purple-500 data-[state=active]:text-white"
             >
               <Receipt className="w-5 h-5" />
               <span className="text-xs">{t("navigation.salesInvoices")}</span>
-            </TabsTrigger>
+            </TabsTrigger> */}
           </TabsList>
 
           {/* Tab Content */}

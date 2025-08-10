@@ -183,7 +183,12 @@
     "validationError": "Erreur de validation",
     "notFound": "Page non trouvée",
     "unauthorized": "Non autorisé",
-    "serverError": "Erreur du serveur"
+    "serverError": "Erreur du serveur",
+    "stockError": "Erreur de stock",
+    "insufficientStock": "Stock insuffisant pour ce produit",
+    "productNotFound": "Produit non trouvé",
+    "tryAgain": "Veuillez réessayer plus tard",
+    "invalidInput": "Entrée invalide"
   },
   "messages": {
     "confirmDelete": "Êtes-vous sûr de vouloir supprimer cet élément ?",

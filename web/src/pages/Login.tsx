@@ -2,6 +2,7 @@ import { useNavigate, useLocation } from "react-router-dom"
 import { useEffect } from "react"
 import { LoginForm } from "@/components/login-form"
 import { useToast } from "@/hooks/use-toast"
+import logo from "@/assets/logo.jpeg"
 
 export default function Login() {
   const navigate = useNavigate();

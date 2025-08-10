@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import logo from "@/assets/logo.jpeg";
 import {
   Search,
   Barcode,
@@ -36,6 +37,22 @@ const SalesInterface = ({ setActiveTab }) => {
 
   const { toast } = useToast();
   const { t } = useTranslation();
+
+  const getBase64Image = async () => {
+    try {
+      const response = await fetch(logo);
+      const blob = await response.blob();
+
+      return new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    } catch (error) {
+      console.error("Error fetching logo:", error);
+    }
+  };
 
   useEffect(() => {
     loadProducts();
@@ -155,8 +172,10 @@ const SalesInterface = ({ setActiveTab }) => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
-  const handleCheckout = async (data) => {
+  const handleCheckout = async (data, printInvoice = false) => {
     try {
+      printReceipt(data?.customer);
+      return;
       setIsLoading(true);
 
       const saleData = {
@@ -179,21 +198,26 @@ const SalesInterface = ({ setActiveTab }) => {
         )}`,
       });
 
+      setCheckoutOpen(false);
       await loadProducts();
       setCart([]);
-      setCheckoutOpen(false);
+      if (printInvoice) {
+        await printReceipt(data?.customer);
+      }
     } catch (error) {
       toast({
         title: t("errors.general"),
         description: t("errors.tryAgain"),
         variant: "destructive",
       });
+      console.error("Checkout error:", error);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const printReceipt = (customer) => {
+  const printReceipt = async (customer) => {
+    const logoBase64 = await getBase64Image();
     const receiptWindow = window.open("", "_blank", "width=400,height=600");
     const now = new Date();
     const total = calculateTotal();
@@ -219,7 +243,10 @@ const SalesInterface = ({ setActiveTab }) => {
       top: 30%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: url('${window.location.origin}/logo.jpeg') no-repeat center;
+      background: url('${logoBase64}');
+      background-repeat: no-repeat;
+      background-position: center;
+      background-size: cover;
       background-size: 300px;
       opacity: 0.05;
       width: 600px;
@@ -247,6 +274,8 @@ const SalesInterface = ({ setActiveTab }) => {
     }
     .header img {
       height: 70px;
+      width: 70px;
+      border: 2px solid #000;
     }
     .store-info {
       text-align: right;
@@ -400,7 +429,7 @@ const SalesInterface = ({ setActiveTab }) => {
 
     <!-- Header -->
     <div class="header">
-      <img src="${window.location.origin}/logo.jpeg" alt="ProSoin Logo"/>
+      <img src="${logoBase64}" alt="ProSoin Logo" />
       <div class="store-info">
         <h2>ProSoin</h2>
         <p>Santé et Bien-être</p>
@@ -412,14 +441,10 @@ const SalesInterface = ({ setActiveTab }) => {
     <div class="info-section">
       <div>
         <p><strong>Client :</strong> ${
-          customer && customer.name
-            ? customer.name
-            : "____________________"
+          customer && customer.name ? customer.name : "____________________"
         }</p>
         <p><strong>Téléphone :</strong> ${
-          customer && customer.phone
-            ? customer.phone
-            : "____________________"
+          customer && customer.phone ? customer.phone : "____________________"
         }</p>
       </div>
       <div style="text-align:right;">
@@ -486,13 +511,8 @@ const SalesInterface = ({ setActiveTab }) => {
 </body>
 </html>
 `;
-
     receiptWindow?.document.write(receiptHTML);
     receiptWindow?.document.close();
-  };
-
-  const handlePrint = (customer) => {
-    printReceipt(customer);
   };
 
   const filteredProducts = products.filter((product) =>
@@ -753,7 +773,6 @@ const SalesInterface = ({ setActiveTab }) => {
         onConfirm={handleCheckout}
         onClose={() => setCheckoutOpen(false)}
         isLoading={isLoading}
-        printReceipt={handlePrint}
       />
     </div>
   );

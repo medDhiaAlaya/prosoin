@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-
+import logo from "@/assets/logo.jpeg";
 import { useState } from "react"
 import { Eye, EyeOff, Lock, Mail } from "lucide-react"
 import { authService } from "@/services/auth-service"
@@ -52,7 +52,7 @@ export function LoginForm({ onLoginSuccess }: LoginFormProps) {
           <div className="text-center mb-8">
             <div>
               <img
-                src="../assets/logo.jpeg"
+                src={logo}
                 alt="ProSoin Logo"
                 className="mx-auto h-30 w-30 mb-4"
               />
