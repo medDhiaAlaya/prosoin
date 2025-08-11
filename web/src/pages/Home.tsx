@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react"
 import { MapPin, Truck, Wrench, Phone, Star, Heart, Shield, Clock, Menu, X } from "lucide-react"
-
+import logo from "@/assets/logo.jpeg"
 // For demo purposes, using placeholder images since the actual product images may not load
-const logo = "/src/assets/logo.jpeg"
-const heroImage = "/src/assets/back2.jpg"
+import heroImage from "@/assets/back2.jpg"
 // Using placeholder images for products to ensure they display
 const product1 = "https://img.medicalexpo.fr/images_me/photo-g/84783-13351253.webp"
 const product2 = "https://m.media-amazon.com/images/I/61ajuUCMhPL._UF1000,1000_QL80_.jpg"
