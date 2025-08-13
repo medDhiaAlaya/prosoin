@@ -21,7 +21,7 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
     const isAuthenticated = localStorage.getItem("authToken");
     if (!isAuthenticated) {
       window.location.href = "/login";
-    }else {
+    } else {
       setToken(isAuthenticated);
     }
   }, []);
@@ -41,16 +41,7 @@ const App = () => {
         <BrowserRouter>
           <Routes>
             {/* home screen */}
-            <Route
-              path="/"
-              element={
-                isAuthenticated ? (
-                  <Navigate to="/home" replace />
-                ) : (
-                  <Home />
-                )
-              }
-            />
+            <Route path="/" element={<Home />} />
             {/* Login Page */}
             <Route
               path="/login"
@@ -70,20 +61,6 @@ const App = () => {
                 <ProtectedRoute>
                   <Index />
                 </ProtectedRoute>
-              }
-            />
-
-
-            
-
-            {/* Default Redirect */}
-            <Route
-              path="/"
-              element={
-                <Navigate
-                  to={isAuthenticated ? "/dashboard" : "/login"}
-                  replace
-                />
               }
             />
           </Routes>
