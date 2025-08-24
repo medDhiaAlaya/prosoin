@@ -79,6 +79,37 @@ const ProductManagement = () => {
     setFormData({ ...formData, barcode })
   }
 
+  const generateUniqueRef = () => {
+    // Generate a random reference with format: REF-XXXXX (where X is alphanumeric)
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    let ref = 'REF-'
+    
+    // Generate 5 random characters
+    for (let i = 0; i < 5; i++) {
+      ref += chars.charAt(Math.floor(Math.random() * chars.length))
+    }
+    
+    // Check if this reference already exists
+    const existingRefs = products.map(p => p.ref).filter(Boolean)
+    let attempts = 0
+    const maxAttempts = 100
+    
+    while (existingRefs.includes(ref) && attempts < maxAttempts) {
+      ref = 'REF-'
+      for (let i = 0; i < 5; i++) {
+        ref += chars.charAt(Math.floor(Math.random() * chars.length))
+      }
+      attempts++
+    }
+    
+    // If we still have a duplicate after max attempts, add a timestamp
+    if (existingRefs.includes(ref)) {
+      ref = `REF-${Date.now().toString().slice(-5)}`
+    }
+    
+    setFormData({ ...formData, ref })
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
@@ -140,6 +171,13 @@ const ProductManagement = () => {
       ref: product.ref || "",
     })
     setIsDialogOpen(true)
+  }
+
+  const handleNewProduct = () => {
+    setEditingProduct(null)
+    setFormData({ name: "", price: "", stock: "", barcode: "", ref: "" })
+    // Generate unique reference for new products
+    setTimeout(() => generateUniqueRef(), 0)
   }
 
   const handleDeleteClick = (product: IProduct) => {
@@ -274,6 +312,19 @@ const ProductManagement = () => {
             if (!barcode) {
               barcode = generateBarcode()
             }
+            
+            // Generate unique reference if not provided
+            let ref = p.ref?.trim()
+            if (!ref) {
+              // Create a temporary function to generate ref for import
+              const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+              ref = 'REF-'
+              for (let i = 0; i < 5; i++) {
+                ref += chars.charAt(Math.floor(Math.random() * chars.length))
+              }
+              // Add timestamp to ensure uniqueness during import
+              ref += `-${Date.now().toString().slice(-3)}`
+            }
 
             try {
               await productService.create({
@@ -281,7 +332,7 @@ const ProductManagement = () => {
                 price,
                 stock,
                 barcode,
-                ref: p.ref || "",
+                ref,
               })
               addedCount++
             } catch (error) {
@@ -322,10 +373,7 @@ const ProductManagement = () => {
             <DialogTrigger asChild>
               <Button
                 className="bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-                onClick={() => {
-                  setEditingProduct(null)
-                  setFormData({ name: "", price: "", stock: "", barcode: "", ref: "" })
-                }}
+                onClick={handleNewProduct}
               >
                 <Plus className="w-4 h-4 mr-2" />
                 {t("products.addProduct")}
@@ -340,13 +388,26 @@ const ProductManagement = () => {
                   <Label htmlFor="ref" className="text-right">
                     Ref *
                   </Label>
-                  <Input
-                    id="ref"
-                    value={formData.ref}
-                    onChange={(e) => setFormData({ ...formData, ref: e.target.value })}
-                    placeholder="Entrer la reférence de produit"
-                    required
-                  />
+                  <div className="flex gap-2">
+                    <Input
+                      id="ref"
+                      value={formData.ref}
+                      onChange={(e) => setFormData({ ...formData, ref: e.target.value })}
+                      placeholder="Entrer la reférence de produit"
+                      className="flex-1"
+                      required
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={generateUniqueRef}
+                      className="px-3"
+                      title="Générer une nouvelle référence"
+                    >
+                      <PackagePlus className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label htmlFor="name" className="text-right">
@@ -571,7 +632,7 @@ const ProductManagement = () => {
                         <Edit className="w-3 h-3 mr-1" /> {t("common.edit")}
                       </Button>
                       <Button size="sm" variant="default" onClick={() => handleAddStockClick(product)}>
-                        <PackagePlus className="w-3 h-3 mr-1" /> Add Stock
+                        <PackagePlus className="w-3 h-3 mr-1" /> Ajouter du stock
                       </Button>
                       <Button size="sm" variant="destructive" onClick={() => handleDeleteClick(product)}>
                         <Trash2 className="w-3 h-3" />
@@ -598,32 +659,32 @@ const ProductManagement = () => {
       <Dialog open={isStockDialogOpen} onOpenChange={setIsStockDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Add Stock</DialogTitle>
+            <DialogTitle>Ajouter du stock</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {selectedProduct && (
               <div className="p-4 bg-gray-50 rounded-lg">
                 <h3 className="font-semibold">{selectedProduct.name}</h3>
-                <p className="text-sm text-gray-600">Current Stock: {selectedProduct.stock}</p>
+                <p className="text-sm text-gray-600">Stock actuel: {selectedProduct.stock}</p>
               </div>
             )}
             <div>
-              <Label htmlFor="stockAmount">Stock Amount to Add</Label>
+              <Label htmlFor="stockAmount">Quantité de stock à ajouter</Label>
               <Input
                 id="stockAmount"
                 type="number"
                 min="1"
                 value={stockToAdd}
                 onChange={(e) => setStockToAdd(e.target.value)}
-                placeholder="Enter amount to add"
+                placeholder="Entrez le montant à ajouter"
               />
             </div>
             <div className="flex gap-2 pt-4">
               <Button onClick={handleAddStock} className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
-                Add Stock
+              Ajouter du stock
               </Button>
               <Button variant="outline" onClick={() => setIsStockDialogOpen(false)}>
-                Cancel
+                Annuler
               </Button>
             </div>
           </div>
@@ -634,23 +695,23 @@ const ProductManagement = () => {
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirm Delete</DialogTitle>
+            <DialogTitle>Confirmer la suppression</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             {productToDelete && (
               <div className="p-4 bg-red-50 rounded-lg border border-red-200">
-                <p className="text-sm">Are you sure you want to delete this product?</p>
+                <p className="text-sm">Êtes-vous sûr de vouloir supprimer ce produit ?</p>
                 <h3 className="font-semibold mt-2">{productToDelete.name}</h3>
                 <p className="text-sm text-gray-600">Ref: {productToDelete.ref}</p>
-                <p className="text-sm text-red-600 mt-2">This action cannot be undone.</p>
+                <p className="text-sm text-red-600 mt-2">Cette action ne peut pas être annulée.</p>
               </div>
             )}
             <div className="flex gap-2 pt-4">
               <Button variant="destructive" onClick={confirmDelete} className="flex-1">
-                Delete Product
+              Supprimer le produit
               </Button>
               <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                Cancel
+              Annuler
               </Button>
             </div>
           </div>

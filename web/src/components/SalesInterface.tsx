@@ -198,6 +198,13 @@ const SalesInterface = ({ setActiveTab }) => {
     const receiptWindow = window.open("", "_blank");
     const now = new Date();
     const total = calculateTotal();
+    
+    // Get the current origin to create absolute URLs for the logo
+    const origin = window.location.origin;
+    const logoUrl = `${origin}/logo.jpeg`;
+    
+    // Use the actual logo file from public directory
+    const finalLogoUrl = logoUrl;
 
   const receiptHTML = `
   <html>
@@ -227,7 +234,7 @@ const SalesInterface = ({ setActiveTab }) => {
         top: 40%;
         left: 50%;
         transform: translate(-50%, -50%);
-        background: url('https://prosoin.com/uploads/logo.jpeg') no-repeat center center;
+        background: url('${finalLogoUrl}') no-repeat center center;
         background-size: 200px; /* Smaller watermark for A4 */
         opacity: 0.03;
         width: 400px;
@@ -446,7 +453,7 @@ const SalesInterface = ({ setActiveTab }) => {
 
       <!-- Header -->
       <div class="header">
-        <img src="'https://prosoin.com/uploads/logo.jpeg" alt="ProSoin Logo" />
+        <img src="${finalLogoUrl}" alt="ProSoin Logo" />
         <div class="store-info">
           <h2>ProSoin</h2>
           <p>Santé et Bien-être</p>
@@ -516,8 +523,33 @@ const SalesInterface = ({ setActiveTab }) => {
     </div>
 
     <script>
-      window.print();
-      window.close();
+      // Ensure logo loads before printing
+      const logoImg = document.querySelector('.header img');
+      if (logoImg) {
+        logoImg.onload = function() {
+          console.log('Logo loaded successfully');
+          // Print after logo is loaded
+          setTimeout(() => {
+            window.print();
+            setTimeout(() => window.close(), 1000);
+          }, 100);
+        };
+        
+        logoImg.onerror = function() {
+          console.log('Logo failed to load, printing anyway');
+          // Print even if logo fails to load
+          setTimeout(() => {
+            window.print();
+            setTimeout(() => window.close(), 1000);
+          }, 100);
+        };
+      } else {
+        // Fallback if logo element not found
+        setTimeout(() => {
+          window.print();
+          setTimeout(() => window.close(), 1000);
+        }, 500);
+      }
     </script>
   </body>
   </html>
