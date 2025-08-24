@@ -18,6 +18,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
 
+
 import { productService, saleService, IProduct } from "@/services";
 import SalesCheckout from "./SalesCheckout";
 
@@ -198,297 +199,330 @@ const SalesInterface = ({ setActiveTab }) => {
     const now = new Date();
     const total = calculateTotal();
 
-    const receiptHTML = `
-<html>
-<head>
-  <title>Facture ProSoin</title>
-  <style>
-    body {
-      font-family: 'Arial', sans-serif;
-      background: #f0f2f5;
-      padding: 30px;
-      max-width: 900px;
-      margin: auto;
-      position: relative;
-    }
+  const receiptHTML = `
+  <html>
+  <head>
+    <title>Facture ProSoin</title>
+    <style>
+      /* Optimized for A4 paper format (210mm x 297mm) */
+      @page {
+        size: A4;
+      }
 
-    /* Watermark */
-    body::before {
-      content: "";
-      position: fixed;
-      top: 30%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: url('http://127.0.0.1:5001/uploads/logo.jpeg') no-repeat center center;
-      background-repeat: no-repeat;
-      background-position: center;
-      background-size: 300px;
-      opacity: 0.05;
-      width: 600px;
-      height: 600px;
-      z-index: 0;
-    }
-
-    .invoice-container {
-      background: white;
-      padding: 25px 30px;
-      border-radius: 8px;
-      box-shadow: 0 0 15px rgba(0,0,0,0.1);
-      position: relative;
-      z-index: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Header */
-    .header {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 3px solid #0d6efd;
-      padding-bottom: 15px;
-      margin-bottom: 20px;
-    }
-    .header img {
-      height: 70px;
-      width: 70px;
-      boder: 1px solid #ddd;
-    }
-    .store-info {
-      text-align: right;
-    }
-    .store-info h2 {
-      color: #0d6efd;
-      margin: 0;
-      font-size: 26px;
-    }
-    .store-info p {
-      margin: 2px 0;
-      font-size: 12px;
-      color: #555;
-    }
-
-    /* Client & Invoice Info */
-    .info-section {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 20px;
-      font-size: 14px;
-      background: #f8f9fa;
-      padding: 12px 15px;
-      border-radius: 6px;
-    }
-    .info-section div {
-      width: 48%;
-    }
-
-    /* Enhanced Table Styling */
-    .invoice-table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      margin: 20px 0;
-      font-size: 14px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-      flex: 1;
-    }
-    
-    .invoice-table thead th {
-      background-color: #0d6efd;
-      color: white;
-      padding: 12px 10px;
-      text-align: center;
-      font-weight: 600;
-      border: none;
-      position: sticky;
-      top: 0;
-    }
-    
-    .invoice-table tbody td {
-      padding: 10px;
-      border-bottom: 1px solid #e0e0e0;
-      text-align: center;
-      vertical-align: middle;
-    }
-    
-    .invoice-table tbody tr:last-child td {
-      border-bottom: none;
-    }
-    
-    .invoice-table tbody tr:hover {
-      background-color: #f8f9fa;
-    }
-    
-    .invoice-table tfoot td {
-      padding: 12px 10px;
-      font-weight: bold;
-      background: #f8f9fa;
-      border-top: 2px solid #0d6efd;
-      border-bottom: none;
-    }
-    
-    .invoice-table .total-label {
-      text-align: right;
-      padding-right: 15px;
-    }
-    
-    .invoice-table .total-value {
-      font-size: 15px;
-      color: #0d6efd;
-    }
-    
-    .price-cell {
-      font-family: 'Courier New', monospace;
-      font-weight: 500;
-    }
-    
-    .invoice-table tbody tr:nth-child(even) {
-      background-color: #f9f9f9;
-    }
-
-    /* Signatures */
-    .signature-container {
-      margin-top: 40px;
-      display: flex;
-      justify-content: space-between;
-    }
-    .signature-box {
-      width: 220px;
-      height: 80px;
-      border: 1px dashed #ccc;
-      border-radius: 4px;
-      text-align: center;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      color: #666;
-      background: #f8f9fa;
-    }
-
-    /* Footer */
-    .footer {
-      margin-top: 40px;
-      border-top: 3px solid #0d6efd;
-      padding-top: 15px;
-      display: flex;
-      justify-content: space-around;
-      font-size: 12px;
-      color: #555;
-      background: #f8f9fa;
-      padding: 12px;
-      border-radius: 6px;
-    }
-    .footer div {
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-
-    /* Print Specific Styles */
-    @media print {
       body {
-        background: none;
+        font-family: 'Arial', sans-serif;
+        background: #f0f2f5;
         padding: 0;
+        margin: 0;
+        width: 330mm;
+        min-height: 297mm;
+        position: relative;
+        font-size: 14px; /* Reduced base font size for better A4 fit */
       }
-      .invoice-container {
-        box-shadow: none;
-        border: none;
-        padding: 0;
-      }
+
+      /* Adjusted watermark for A4 dimensions */
       body::before {
-        display: none;
+        content: "";
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: url('https://prosoin.com/uploads/logo.jpeg') no-repeat center center;
+        background-size: 200px; /* Smaller watermark for A4 */
+        opacity: 0.03;
+        width: 400px;
+        height: 400px;
+        z-index: 0;
       }
-    }
-  </style>
-</head>
-<body>
-  <div class="invoice-container">
 
-    <!-- Header -->
-    <div class="header">
-      <img src="http://127.0.0.1:5001/uploads/logo.jpeg" alt="ProSoin Logo" />
-      <div class="store-info">
-        <h2>ProSoin</h2>
-        <p>Santé et Bien-être</p>
-        <p>Gabès, Tunisie</p>
-      </div>
-    </div>
+      /* Optimized container for A4 with proper spacing */
+      .invoice-container {
+        background: white;
+        padding: 15mm 20mm;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 267mm; /* A4 height minus margins */
+        width: 200mm; /* A4 width minus margins */
+      }
 
-    <!-- Info Section -->
-    <div class="info-section">
-      <div>
-        <p><strong>Client :</strong> ${
-          customer && customer.name ? customer.name : "____________________"
-        }</p>
-        <p><strong>Téléphone :</strong> ${
-          customer && customer.phone ? customer.phone : "____________________"
-        }</p>
-      </div>
-      <div style="text-align:right;">
-        <p><strong>Date :</strong> ${now.toLocaleString()}</p>
-        <p><strong>N° Facture :</strong> ####</p>
-      </div>
-    </div>
+      /* Compact header for A4 */
+      .header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 2px solid #0d6efd;
+        padding-bottom: 10mm;
+        margin-bottom: 8mm;
+      }
+      .header img {
+        height: 100px; /* Smaller logo for A4 */
+        width: 100px;
+        border: 1px solid #ddd;
+      }
+      .store-info {
+        text-align: right;
+      }
+      .store-info h2 {
+        color: #0d6efd;
+        margin: 0;
+        font-size: 20px; /* Smaller title for A4 */
+      }
+      .store-info p {
+        margin: 1px 0;
+        font-size: 11px;
+        color: #555;
+      }
 
-    <!-- Product Table -->
-    <table class="invoice-table">
-      <thead>
-        <tr>
-          <th style="border-radius: 4px 0 0 0;">Réf</th>
-          <th>Article</th>
-          <th>Qté</th>
-          <th>Prix (DT)</th>
-          <th style="border-radius: 0 4px 0 0;">Total (DT)</th>
-        </tr>
-      </thead>
-      <tbody>
-        ${cart
-          .map(
-            (item) => `
+      /* Compact info section for A4 */
+      .info-section {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 6mm;
+        font-size: 12px;
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+      .info-section div {
+        width: 48%;
+      }
+
+      /* Table optimized for A4 with proper page breaks */
+      .invoice-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 5mm 0;
+        font-size: 11px; /* Smaller font for better fit */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        page-break-inside: auto;
+      }
+      .invoice-table thead {
+        display: table-header-group;
+      }
+      .invoice-table tfoot {
+        display: table-footer-group;
+      }
+      .invoice-table thead th {
+        background-color: #0d6efd;
+        color: white;
+        padding: 8px 6px; /* Reduced padding for A4 */
+        text-align: center;
+        font-weight: 600;
+        border: none;
+        font-size: 11px;
+      }
+      .invoice-table tbody td {
+        padding: 6px 4px; /* Reduced padding for A4 */
+        border-bottom: 1px solid #e0e0e0;
+        text-align: center;
+        vertical-align: middle;
+        page-break-inside: avoid;
+      }
+      .invoice-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .invoice-table tbody tr:hover {
+        background-color: #f8f9fa;
+      }
+      .invoice-table tfoot td {
+        padding: 8px 6px;
+        font-weight: bold;
+        background: #f8f9fa;
+        border-top: 2px solid #0d6efd;
+        border-bottom: none;
+        font-size: 12px;
+      }
+      .invoice-table .total-label {
+        text-align: right;
+        padding-right: 10px;
+      }
+      .invoice-table .total-value {
+        font-size: 13px;
+        color: #0d6efd;
+      }
+      .price-cell {
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+      }
+      .invoice-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+
+      /* Signatures optimized for A4 bottom */
+      .signature-container {
+        margin-top: 10mm;
+        display: flex;
+        justify-content: space-between;
+        page-break-inside: avoid;
+      }
+      .signature-box {
+        width: 70mm; /* A4-appropriate width */
+        height: 20mm;
+        border: 1px dashed #ccc;
+        border-radius: 3px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #666;
+        background: #f8f9fa;
+      }
+
+      /* Footer positioned for A4 bottom */
+      .footer {
+        margin-top: auto;
+        border-top: 2px solid #0d6efd;
+        padding-top: 8px;
+        display: flex;
+        justify-content: space-around;
+        font-size: 10px;
+        color: #555;
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        page-break-inside: avoid;
+      }
+
+      /* Enhanced print styles for A4 */
+      @media print {
+        body {
+          background: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 210mm !important;
+          font-size: 11px !important;
+        }
+        
+        .invoice-container {
+          background: white !important;
+          padding: 15mm 20mm !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          position: relative !important;
+          z-index: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          min-height: 267mm !important;
+          width: 170mm !important;
+          margin: 0 !important;
+        }
+        
+        body::before {
+          display: none !important;
+        }
+        
+        .signature-container, .footer {
+          page-break-inside: avoid !important;
+        }
+        
+        .invoice-table {
+          page-break-inside: auto !important;
+        }
+        
+        .invoice-table thead {
+          display: table-header-group !important;
+        }
+        
+        .invoice-table tfoot {
+          display: table-footer-group !important;
+        }
+        
+        /* Ensure proper page breaks for long tables */
+        .invoice-table tbody tr {
+          page-break-inside: avoid !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="invoice-container">
+
+      <!-- Header -->
+      <div class="header">
+        <img src="'https://prosoin.com/uploads/logo.jpeg" alt="ProSoin Logo" />
+        <div class="store-info">
+          <h2>ProSoin</h2>
+          <p>Santé et Bien-être</p>
+          <p>Gabès, Tunisie</p>
+        </div>
+      </div>
+
+      <!-- Info Section -->
+      <div class="info-section">
+        <div>
+          <p><strong>Client :</strong> ${customer?.name || "____________________"}</p>
+          <p><strong>Téléphone :</strong> ${customer?.phone || "____________________"}</p>
+        </div>
+        <div style="text-align:right;">
+          <p><strong>Date :</strong> ${now.toLocaleString()}</p>
+          <p><strong>N° Facture :</strong> ####</p>
+        </div>
+      </div>
+
+      <!-- Product Table -->
+      <table class="invoice-table">
+        <thead>
           <tr>
-            <td>${item.ref || "-"}</td>
-            <td style="text-align: left;">${item.name}</td>
-            <td>${item.quantity}</td>
-            <td class="price-cell">${item.price.toFixed(2)}</td>
-            <td class="price-cell">${(item.price * item.quantity).toFixed(
-              2
-            )}</td>
+            <th>Réf</th>
+            <th>Article</th>
+            <th>Qté</th>
+            <th>Prix (DT)</th>
+            <th>Total (DT)</th>
           </tr>
-        `
-          )
-          .join("")}
-      </tbody>
-      <tfoot>
-        <tr>
-          <td colspan="4" class="total-label">Total TTC</td>
-          <td class="total-value price-cell">${total.toFixed(2)} DT</td>
-        </tr>
-      </tfoot>
-    </table>
+        </thead>
+        <tbody>
+          ${cart
+            .map(
+              (item) => `
+            <tr>
+              <td>${item.ref || "-"}</td>
+              <td style="text-align: left;">${item.name}</td>
+              <td>${item.quantity}</td>
+              <td class="price-cell">${item.price.toFixed(2)}</td>
+              <td class="price-cell">${(item.price * item.quantity).toFixed(2)}</td>
+            </tr>
+          `,
+            )
+            .join("")}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="4" class="total-label">Total TTC</td>
+            <td class="total-value price-cell">${total.toFixed(2)} DT</td>
+          </tr>
+        </tfoot>
+      </table>
 
-    <!-- Signatures -->
-    <div class="signature-container">
-      <div class="signature-box">Signature Vendeur</div>
-      <div class="signature-box">Signature Client</div>
+      <!-- Signatures -->
+      <div class="signature-container">
+        <div class="signature-box">Signature Vendeur</div>
+        <div class="signature-box">Signature Client</div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <div>📧 contact@prosoin.com</div>
+        <div>📞 +216 00 000 000</div>
+        <div>📍 Gabès, Tunisie</div>
+      </div>
+
     </div>
 
-    <!-- Footer -->
-    <div class="footer">
-      <div>📧 contact@prosoin.com</div>
-      <div>📞 +216 00 000 000</div>
-      <div>📍 Gabès, Tunisie</div>
-    </div>
+    <script>
+      window.print();
+      window.close();
+    </script>
+  </body>
+  </html>
 
-  </div>
-
-  <script>
-    window.print();
-    window.close();
-  </script>
-</body>
-</html>
-`;
+  `;
     receiptWindow?.document.write(receiptHTML);
     receiptWindow?.document.close();
   };

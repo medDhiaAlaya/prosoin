@@ -250,7 +250,7 @@ export default function ProSoinEnhanced() {
               className="text-xl md:text-2xl text-white/90 mb-8 max-w-3xl animate-fade-in-up"
               style={{ animationDelay: "600ms" }}
             >
-              Équipements médicaux et paramédicaux de qualité supérieure avec service premium inclus.
+              Vente et location d'équipements médicaux et paramédicaux essentiels .
             </p>
 
             <div

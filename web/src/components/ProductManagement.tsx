@@ -19,6 +19,7 @@ import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import Papa from "papaparse"
 
+
 interface FormData {
   name: string
   price: string
