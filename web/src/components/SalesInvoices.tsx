@@ -7,6 +7,9 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Table,
@@ -23,6 +26,7 @@ import {
   User,
   Printer,
   Search,
+  Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Input } from "@/components/ui/input";
@@ -39,6 +43,8 @@ const SalesInvoices = () => {
   const [error, setError] = useState<string | null>(null);
   const [invoices, setInvoices] = useState<ISale[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [deletePassword, setDeletePassword] = useState("");
+  const [deleteError, setDeleteError] = useState(false);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const { toast } = useToast();
   const { t } = useTranslation();
@@ -417,12 +423,30 @@ const SalesInvoices = () => {
     receiptWindow?.document.close();
   };
 
+  // Function to cancel/delete an invoice
+  const cancelInvoice = async (id: string) => {
+    try {
+      await saleService.cancel(id);
+      toast({
+        title: t("invoices.cancelSuccess"),
+        description: t("invoices.cancelSuccessDesc"),
+      });
+      loadInvoices();
+    } catch (error) {
+      toast({
+        variant: "destructive",
+        title: t("common.error"),
+        description: t("invoices.cancelError"),
+      });
+    }
+  };
+
   // Function to refresh the invoices list
   const refreshInvoices = useCallback(() => {
     setRefreshTrigger((prev) => prev + 1);
   }, []);
 
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await saleService.getSalesByUser();
@@ -437,16 +461,19 @@ const SalesInvoices = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [t, toast]);
 
   useEffect(() => {
     loadInvoices();
-  }, [t, toast]);
+  }, [t, toast, loadInvoices]);
 
   const filteredInvoices = useCallback(() => {
     return invoices.filter(
       (invoice) =>
-        (invoice.invoiceNumber?.toLowerCase() || "").includes(
+        // First filter out cancelled invoices
+        invoice.status !== "cancelled" &&
+        // Then apply search filter
+        ((invoice.invoiceNumber?.toLowerCase() || "").includes(
           searchQuery.toLowerCase()
         ) ||
         (invoice.customer?.email?.toLowerCase() || "").includes(
@@ -454,7 +481,7 @@ const SalesInvoices = () => {
         ) ||
         (invoice.customer?.name?.toLowerCase() || "").includes(
           searchQuery.toLowerCase()
-        )
+        ))
     );
   }, [invoices, searchQuery])();
 
@@ -560,9 +587,76 @@ const SalesInvoices = () => {
                         <div className="text-lg font-bold text-blue-600">
                           {invoice.total.toFixed(2)} {t("common.currency")}
                         </div>
-                        <Button variant="ghost" size="sm" className="mt-1">
-                          {t("invoices.viewDetails")}
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button variant="ghost" size="sm" className="mt-1">
+                            {t("invoices.viewDetails")}
+                          </Button>
+                          <Dialog>
+                            <DialogTrigger asChild>
+                              <Button 
+                                variant="destructive" 
+                                size="sm" 
+                                className="mt-1"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                }}>
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <DialogContent onClick={(e) => e.stopPropagation()}>
+                              <DialogHeader>
+                                <DialogTitle>{t("invoices.cancelTitle")}</DialogTitle>
+                                <DialogDescription>
+                                  {t("invoices.cancelConfirm")}
+                                </DialogDescription>
+                              </DialogHeader>
+                              <div className="py-4">
+                                <label className="text-sm text-gray-600 mb-2 block">
+                                  {t("common.enterPassword")}
+                                </label>
+                                <Input
+                                  type="password"
+                                  value={deletePassword}
+                                  onChange={(e) => {
+                                    setDeletePassword(e.target.value);
+                                    setDeleteError(false);
+                                  }}
+                                  className={deleteError ? "border-red-500" : ""}
+                                />
+                                {deleteError && (
+                                  <p className="text-sm text-red-500 mt-1">
+                                    {t("common.incorrectPassword")}
+                                  </p>
+                                )}
+                              </div>
+                              <DialogFooter>
+                                <Button 
+                                  variant="outline" 
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setDeletePassword("");
+                                    setDeleteError(false);
+                                  }}>
+                                  {t("common.cancel")}
+                                </Button>
+                                <Button 
+                                  variant="destructive"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (deletePassword === "4321") {
+                                      cancelInvoice(invoice._id);
+                                      setDeletePassword("");
+                                      setDeleteError(false);
+                                    } else {
+                                      setDeleteError(true);
+                                    }
+                                  }}>
+                                  {t("common.confirm")}
+                                </Button>
+                              </DialogFooter>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
                     </div>
                   </CardContent>
