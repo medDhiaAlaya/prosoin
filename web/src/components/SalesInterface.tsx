@@ -469,7 +469,7 @@ const SalesInterface = ({ setActiveTab }) => {
         </div>
         <div style="text-align:right;">
           <p><strong>Date :</strong> ${now.toLocaleString()}</p>
-          <p><strong>N° Facture :</strong> ####</p>
+          <p><strong>N° Facture :</strong></p>
         </div>
       </div>
 
