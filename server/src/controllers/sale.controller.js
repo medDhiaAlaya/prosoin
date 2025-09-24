@@ -2,6 +2,7 @@ import Sale from "../models/Sale.model.js";
 import Product from "../models/Product.model.js";
 import { BadRequestError, NotFoundError } from "../helpers/errors.js";
 import CustomerModel from "../models/Customer.model.js";
+import Counter from "../models/Counter.model.js";
 
 const saleController = {
   createSale: async (req, res, next) => {
@@ -17,12 +18,13 @@ const saleController = {
       } = req.body;
       const { userId } = req.user;
 
-      // Generate invoice number
-      const date = new Date();
-      const invoiceNumber = `INV-${date
-        .toISOString()
-        .slice(0, 10)
-        .replace(/-/g, "")}-${date.getTime().toString().slice(-4)}`;
+      // Atomic invoice number increment
+      const counter = await Counter.findOneAndUpdate(
+        { name: "invoice" },
+        { $inc: { seq: 1 } },
+        { new: true, upsert: true }
+      );
+      const invoiceNumber = `INV-${String(counter.seq).padStart(6, "0")}`;
 
       // Calculate total and update stock
       let total = 0;

@@ -4,7 +4,13 @@ import { BadRequestError, NotFoundError } from "../helpers/errors.js";
 const productController = {
   createProduct: async (req, res, next) => {
     try {
-      const { name, price, stock, barcode, ref } = req.body;
+      let { name, purchasePrice, price, tva, stock, barcode, ref } = req.body;
+
+      // Debug: log raw incoming body
+      try {
+        // eslint-disable-next-line no-console
+        console.log("[createProduct] raw body:", req.body);
+      } catch (_) {}
 
       if (barcode) {
         const existingProduct = await Product.findOne({ barcode });
@@ -13,10 +19,23 @@ const productController = {
         }
       }
 
+      // Coerce numeric fields safely
+      const numPurchase = Number(purchasePrice);
+      const numPrice = Number(price);
+      const numTva = tva === undefined || tva === null || tva === "" ? 0 : Number(tva);
+      const numStock = stock === undefined || stock === null || stock === "" ? 0 : Number(stock);
+
+      try {
+        // eslint-disable-next-line no-console
+        console.log("[createProduct] coerced:", { numPurchase, numPrice, numTva, numStock });
+      } catch (_) {}
+
       const product = await Product.create({
         name,
-        price,
-        stock,
+        purchasePrice: isFinite(numPurchase) ? numPurchase : 0,
+        price: isFinite(numPrice) ? numPrice : 0,
+        tva: isFinite(numTva) ? numTva : 0,
+        stock: isFinite(numStock) ? numStock : 0,
         barcode,
         ref
       });

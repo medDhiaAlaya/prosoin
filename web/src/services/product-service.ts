@@ -3,7 +3,9 @@ import api from './api';
 export interface IProduct {
   _id: string;
   name: string;
+  purchasePrice: number;
   price: number;
+  tva?: number;
   stock: number;
   barcode?: string;
   ref?: string;
@@ -13,8 +15,10 @@ export interface IProduct {
 
 export interface ICreateProduct {
   name: string;
+  purchasePrice: number;
   price: number;
-  stock: number;
+  tva?: number;
+  stock?: number;
   barcode?: string;
   ref?: string;
 }

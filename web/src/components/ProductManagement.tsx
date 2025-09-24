@@ -18,11 +18,15 @@ import { CSVLink } from "react-csv"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
 import Papa from "papaparse"
+import { useCallback } from "react"
 
 
 interface FormData {
   name: string
   price: string
+  purchasePrice: string
+  profitPercent: string
+  tva: string
   stock: string
   barcode: string
   ref: string
@@ -43,6 +47,9 @@ const ProductManagement = () => {
   const [formData, setFormData] = useState<FormData>({
     name: "",
     price: "",
+    purchasePrice: "",
+    profitPercent: "20",
+    tva: "0",
     stock: "",
     barcode: "",
     ref: "",
@@ -52,11 +59,7 @@ const ProductManagement = () => {
   const { t } = useTranslation()
   const fileInputRef = useRef<HTMLInputElement | null>(null)
 
-  useEffect(() => {
-    loadData()
-  }, [])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setIsLoading(true)
       const [productsResponse] = await Promise.all([productService.getAll()])
@@ -70,13 +73,23 @@ const ProductManagement = () => {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [toast, t])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const generateBarcode = () => {
     const barcode = Math.floor(Math.random() * 1000000000)
       .toString()
       .padStart(9, "0")
     setFormData({ ...formData, barcode })
+  }
+
+  const generateRandomBarcode = () => {
+    return Math.floor(Math.random() * 1000000000)
+      .toString()
+      .padStart(9, "0")
   }
 
   const generateUniqueRef = () => {
@@ -110,10 +123,21 @@ const ProductManagement = () => {
     setFormData({ ...formData, ref })
   }
 
+  const computePrice = (purchasePriceStr: string, profitPercentStr: string, tvaStr: string) => {
+    const normalize = (v: string) => String(v ?? "").replace(",", ".");
+    const purchase = Number.parseFloat(normalize(purchasePriceStr || "0"))
+    const profitPct = Number.parseFloat(normalize(profitPercentStr || "0"))
+    const tvaPct = Number.parseFloat(normalize(tvaStr || "0"))
+    if (!isFinite(purchase) || !isFinite(profitPct) || !isFinite(tvaPct)) return ""
+    const priceHT = purchase * (1 + profitPct / 100)
+    const priceTTC = priceHT * (1 + tvaPct / 100)
+    return priceTTC.toFixed(2)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
-    if (!formData.name || !formData.price) {
+    if (!formData.name || !formData.price || !formData.purchasePrice) {
       toast({
         title: t("errors.validationError"),
         description: t("products.fillAllFields"),
@@ -124,9 +148,16 @@ const ProductManagement = () => {
 
     try {
       setIsLoading(true)
+      const normalize = (v: string) => String(v ?? "").replace(",", ".");
+      const purchasePriceNum = Number.parseFloat(normalize(formData.purchasePrice))
+      const priceNum = Number.parseFloat(normalize(formData.price))
+      const tvaNum = formData.tva !== "" ? Number.parseFloat(normalize(formData.tva)) : undefined
+
       const productData = {
         name: formData.name,
-        price: Number.parseFloat(formData.price),
+        purchasePrice: Number.isFinite(purchasePriceNum) ? purchasePriceNum : 0,
+        price: Number.isFinite(priceNum) ? priceNum : 0,
+        tva: tvaNum,
         stock: Number.parseInt(formData.stock) || 0,
         barcode: formData.barcode || "",
         ref: formData.ref || "",
@@ -149,7 +180,7 @@ const ProductManagement = () => {
       await loadData()
       setIsDialogOpen(false)
       setEditingProduct(null)
-      setFormData({ name: "", price: "", stock: "", barcode: "", ref: "" })
+      setFormData({ name: "", price: "", purchasePrice: "", profitPercent: "20", tva: "0", stock: "", barcode: "", ref: "" })
     } catch (error) {
       toast({
         title: t("errors.general"),
@@ -163,19 +194,31 @@ const ProductManagement = () => {
 
   const handleEdit = (product: IProduct) => {
     setEditingProduct(product)
+    // Safely coalesce potential undefined values from legacy data
+    const priceValue = product.price ?? 0
+    const purchaseValue = product.purchasePrice ?? 0
+    const tvaPct = product.tva ?? 0
+
+    // Derive profit percent from price TTC by removing TVA first
+    const priceHT = purchaseValue > 0 ? priceValue / (1 + tvaPct / 100) : 0
+    const profitPct = purchaseValue > 0 ? (((priceHT - purchaseValue) / purchaseValue) * 100) : 0
+
     setFormData({
-      name: product.name,
-      price: product.price.toString(),
-      stock: product.stock.toString(),
-      barcode: product.barcode || "",
-      ref: product.ref || "",
+      name: String(product.name ?? ""),
+      price: String(priceValue),
+      purchasePrice: String(purchaseValue),
+      profitPercent: isFinite(profitPct) ? profitPct.toFixed(2) : "",
+      tva: String(tvaPct),
+      stock: String(product.stock ?? 0),
+      barcode: String(product.barcode ?? ""),
+      ref: String(product.ref ?? ""),
     })
     setIsDialogOpen(true)
   }
 
   const handleNewProduct = () => {
     setEditingProduct(null)
-    setFormData({ name: "", price: "", stock: "", barcode: "", ref: "" })
+    setFormData({ name: "", price: "", purchasePrice: "", profitPercent: "20", tva: "0", stock: "", barcode: "", ref: "" })
     // Generate unique reference for new products
     setTimeout(() => generateUniqueRef(), 0)
   }
@@ -284,7 +327,7 @@ const ProductManagement = () => {
     const tableData = products.map((p) => [p.name, p.ref || "-", p.price.toFixed(2) + " DT", p.stock, p.barcode || "-"])
 
     autoTable(doc, {
-      head: [["Nom", "Réf", "Prix (DT)", "Stock", "Code-barres"]],
+      head: [["Nom", "Réf", "Prix de vente (DT)", "Stock", "Code-barres"]],
       body: tableData,
     })
 
@@ -299,22 +342,29 @@ const ProductManagement = () => {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        const importedProducts = results.data as any[]
+        const importedProducts = results.data as Array<Record<string, unknown>>
         let addedCount = 0
 
         for (const p of importedProducts) {
-          const name = p.name?.trim()
-          const price = Number.parseFloat((p.price || "").toString().replace(",", "."))
-          const stock = Number.parseInt(p.stock || "0")
-          let barcode = p.barcode?.trim()
+          const name = String((p as Record<string, unknown>).name ?? "").trim()
+          const salePriceRaw = (p as Record<string, unknown>).price ?? (p as Record<string, unknown>).salePrice ?? ""
+          const purchasePriceRaw = (p as Record<string, unknown>).purchasePrice ?? (p as Record<string, unknown>).price ?? "0"
+          const tvaRaw = (p as Record<string, unknown>).tva
+          const stockRaw = (p as Record<string, unknown>).stock ?? "0"
+          let barcode = String((p as Record<string, unknown>).barcode ?? "").trim()
 
-          if (name && !isNaN(price)) {
+          const salePriceParsed = Number.parseFloat(String(salePriceRaw).toString().replace(",", "."))
+          const purchasePriceParsed = Number.parseFloat(String(purchasePriceRaw).toString().replace(",", "."))
+          const tvaParsed = tvaRaw !== undefined && tvaRaw !== null && String(tvaRaw) !== "" ? Number.parseFloat(String(tvaRaw).replace(",", ".")) : undefined
+          const stock = Number.parseInt(String(stockRaw))
+
+          if (name && !isNaN(salePriceParsed) && !isNaN(purchasePriceParsed)) {
             if (!barcode) {
-              barcode = generateBarcode()
+              barcode = generateRandomBarcode()
             }
             
             // Generate unique reference if not provided
-            let ref = p.ref?.trim()
+            let ref = String((p as Record<string, unknown>).ref ?? "").trim()
             if (!ref) {
               // Create a temporary function to generate ref for import
               const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
@@ -329,7 +379,9 @@ const ProductManagement = () => {
             try {
               await productService.create({
                 name,
-                price,
+                price: salePriceParsed,
+                purchasePrice: purchasePriceParsed,
+                tva: tvaParsed,
                 stock,
                 barcode,
                 ref,
@@ -383,8 +435,8 @@ const ProductManagement = () => {
               <DialogHeader>
                 <DialogTitle>{editingProduct ? t("products.editProduct") : t("products.addProduct")}</DialogTitle>
               </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
+              <form onSubmit={handleSubmit} className="space-y-5">
+                <div className="space-y-2">
                   <Label htmlFor="ref" className="text-right">
                     Ref *
                   </Label>
@@ -409,7 +461,8 @@ const ProductManagement = () => {
                     </Button>
                   </div>
                 </div>
-                <div>
+
+                <div className="space-y-2">
                   <Label htmlFor="name" className="text-right">
                     {t("products.productName")} *
                   </Label>
@@ -421,50 +474,152 @@ const ProductManagement = () => {
                     required
                   />
                 </div>
-                <div>
-                  <Label htmlFor="price" className="text-right">
-                    {t("products.price")} *
-                  </Label>
-                  <Input
-                    id="price"
-                    type="number"
-                    step="0.01"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder={t("products.pricePlaceholder")}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="stock" className="text-right">
-                    {t("products.stock")}
-                  </Label>
-                  <Input
-                    id="stock"
-                    type="number"
-                    value={formData.stock}
-                    onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
-                    placeholder={t("products.stockPlaceholder")}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="barcode" className="text-right">
-                    {t("products.barcode")}
-                  </Label>
-                  <div className="flex gap-2">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="purchasePrice" className="text-right">
+                      {t("products.purchasePrice")} *
+                    </Label>
                     <Input
-                      id="barcode"
-                      value={formData.barcode}
-                      onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                      placeholder={t("products.barcodePlaceholder")}
-                      className="flex-1"
+                      id="purchasePrice"
+                      type="number"
+                      step="0.01"
+                      value={formData.purchasePrice}
+                      onChange={(e) => {
+                        const newPurchase = e.target.value
+                        const pct = formData.profitPercent
+                        const tva = formData.tva === "" ? "0" : formData.tva
+                        const newPrice = computePrice(newPurchase, pct, tva)
+                        setFormData({ ...formData, purchasePrice: newPurchase, price: newPrice })
+                      }}
+                      placeholder={t("products.purchasePricePlaceholder")}
+                      required
                     />
-                    <Button type="button" variant="outline" onClick={generateBarcode}>
-                      <Barcode className="w-4 h-4" />
-                    </Button>
+                    <p className="text-xs text-gray-500">Prix d'achat (HT ou TTC selon votre convention)</p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profitPercent" className="text-right">
+                      {t("products.profitPercent")} (%)
+                    </Label>
+                    <Input
+                      id="profitPercent"
+                      type="number"
+                      step="0.01"
+                      value={formData.profitPercent}
+                      onChange={(e) => {
+                        const pct = e.target.value
+                        const base = formData.purchasePrice
+                        const tva = formData.tva === "" ? "0" : formData.tva
+                        const newPrice = computePrice(base, pct, tva)
+                        setFormData({ ...formData, profitPercent: pct, price: newPrice })
+                      }}
+                      placeholder="0"
+                    />
+                    <p className="text-xs text-gray-500">Marge appliquée sur le prix d'achat</p>
                   </div>
                 </div>
-                <div className="flex gap-2 pt-4">
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="price" className="text-right">
+                      {t("products.price")} *
+                    </Label>
+                    <Input
+                      id="price"
+                      type="number"
+                      step="0.01"
+                      value={formData.price}
+                      onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+                      placeholder={t("products.pricePlaceholder")}
+                      required
+                      readOnly
+                    />
+                    <p className="text-xs text-gray-500">Calculé automatiquement par Marge × Prix d'achat</p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-right">TVA (%)</Label>
+                    <div className="flex items-center gap-6 h-10">
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="tva"
+                          value="0"
+                          checked={formData.tva === "0" || formData.tva === ""}
+                          onChange={(e) => {
+                            const tva = e.target.value
+                            const newPrice = computePrice(formData.purchasePrice, formData.profitPercent, tva)
+                            setFormData({ ...formData, tva, price: newPrice })
+                          }}
+                        />
+                        <span>0%</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="tva"
+                          value="7"
+                          checked={formData.tva === "7"}
+                          onChange={(e) => {
+                            const tva = e.target.value
+                            const newPrice = computePrice(formData.purchasePrice, formData.profitPercent, tva)
+                            setFormData({ ...formData, tva, price: newPrice })
+                          }}
+                        />
+                        <span>7%</span>
+                      </label>
+                      <label className="flex items-center gap-2">
+                        <input
+                          type="radio"
+                          name="tva"
+                          value="19"
+                          checked={formData.tva === "19"}
+                          onChange={(e) => {
+                            const tva = e.target.value
+                            const newPrice = computePrice(formData.purchasePrice, formData.profitPercent, tva)
+                            setFormData({ ...formData, tva, price: newPrice })
+                          }}
+                        />
+                        <span>19%</span>
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500">Choisissez la TVA applicable</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="stock" className="text-right">
+                      {t("products.stock")}
+                    </Label>
+                    <Input
+                      id="stock"
+                      type="number"
+                      value={formData.stock}
+                      onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                      placeholder={t("products.stockPlaceholder")}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="barcode" className="text-right">
+                      {t("products.barcode")}
+                    </Label>
+                    <div className="flex gap-2">
+                      <Input
+                        id="barcode"
+                        value={formData.barcode}
+                        onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                        placeholder={t("products.barcodePlaceholder")}
+                        className="flex-1"
+                      />
+                      <Button type="button" variant="outline" onClick={generateBarcode} title="Générer un code-barres">
+                        <Barcode className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex gap-2 pt-2">
                   <Button type="submit" className="flex-1 bg-gradient-to-r from-green-500 to-emerald-500">
                     {editingProduct ? t("common.edit") : t("common.add")}
                   </Button>
@@ -491,6 +646,8 @@ const ProductManagement = () => {
                     name: p.name,
                     ref: p.ref,
                     price: p.price,
+                    purchasePrice: p.purchasePrice,
+                    tva: p.tva ?? 0,
                     stock: p.stock,
                     barcode: p.barcode,
                   }))}
@@ -569,6 +726,16 @@ const ProductManagement = () => {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">{t("products.purchasePrice")}:</span>
+                    <span className="font-semibold text-gray-700">
+                      {product.purchasePrice} {t("common.currency")}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-600">TVA (%):</span>
+                    <span className="font-semibold text-gray-700">{product.tva ?? 0}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
                     <span className="text-sm text-gray-600">{t("products.stock")}:</span>
                     <Badge variant={product.stock > 10 ? "default" : "destructive"}>{product.stock}</Badge>
                   </div>
@@ -603,6 +770,8 @@ const ProductManagement = () => {
                 <th className="px-4 py-2 text-left">{t("products.productName")}</th>
                 <th className="px-4 py-2 text-left">Ref</th>
                 <th className="px-4 py-2 text-left">{t("products.price")}</th>
+                <th className="px-4 py-2 text-left">{t("products.purchasePrice")}</th>
+                <th className="px-4 py-2 text-left">TVA (%)</th>
                 <th className="px-4 py-2 text-left">{t("products.stock")}</th>
                 <th className="px-4 py-2 text-left">{t("products.barcode")}</th>
                 <th className="px-4 py-2 text-left">Actions</th>
@@ -611,7 +780,7 @@ const ProductManagement = () => {
             <tbody>
               {isLoading ? (
                 <tr>
-                  <td colSpan={6} className="text-center py-6">
+                  <td colSpan={8} className="text-center py-6">
                     Loading...
                   </td>
                 </tr>
@@ -623,6 +792,10 @@ const ProductManagement = () => {
                     <td className="px-4 py-2 font-bold text-blue-600">
                       {product.price} {t("common.currency")}
                     </td>
+                    <td className="px-4 py-2">
+                      {product.purchasePrice} {t("common.currency")}
+                    </td>
+                    <td className="px-4 py-2">{product.tva ?? 0}</td>
                     <td className="px-4 py-2">
                       <Badge variant={product.stock > 10 ? "default" : "destructive"}>{product.stock}</Badge>
                     </td>

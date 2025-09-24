@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTranslation } from "react-i18next";
+import { useCallback } from "react";
 
 
 import { productService, saleService, IProduct } from "@/services";
@@ -38,11 +39,7 @@ const SalesInterface = ({ setActiveTab }) => {
   const { toast } = useToast();
   const { t } = useTranslation();
 
-  useEffect(() => {
-    loadProducts();
-  }, []);
-
-  const loadProducts = async () => {
+  const loadProducts = useCallback(async () => {
     try {
       setIsLoading(true);
       const response = await productService.getAll();
@@ -56,7 +53,11 @@ const SalesInterface = ({ setActiveTab }) => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [toast, t]);
+
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
 
   const handleCheckoutOpen = () => {
     if (cart.length === 0) {

@@ -75,6 +75,10 @@
   },
   "products": {
     "title": "Gestion des Produits",
+    "purchasePrice": "Prix d'Achat",
+    "profitPercent": "Pourcentage de Profit",
+    "tva": "TVA",
+    "reference": "Référence",
     "addProduct": "Ajouter un Nouveau Produit",
     "editProduct": "Modifier le Produit",
     "productName": "Nom du Produit",
