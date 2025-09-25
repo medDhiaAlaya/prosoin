@@ -49,6 +49,60 @@ const SalesInvoices = () => {
   const { toast } = useToast();
   const { t } = useTranslation();
 
+  // Calculate totals with TVA and discount
+  const calculateTotalsWithDiscount = (invoice: ISale) => {
+    // Since price includes TVA, we need to calculate backwards
+    let totalTTC = 0;
+    let totalHT = 0;
+    let totalTax = 0;
+
+    // Calculate for each item since they might have different TVA rates
+    for (const item of invoice.items) {
+      const quantity = item.quantity || 0;
+      const priceTTC = item.price || 0; // This is the price including TVA
+      const tvaRate = Number(item.tva ?? item.product?.tva ?? 0);
+      
+      // Calculate HT price: HT = TTC / (1 + TVA%)
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineTTC = priceTTC * quantity;
+      const lineHT = priceHT * quantity;
+      const lineTax = lineTTC - lineHT;
+
+      totalTTC += lineTTC;
+      totalHT += lineHT;
+      totalTax += lineTax;
+    }
+
+    // Apply discount if any
+    const discountPercent = Number(invoice.discount || 0);
+    const discountAmount = (totalHT * discountPercent) / 100;
+    const htAfterDiscount = totalHT - discountAmount;
+    
+    // Recalculate TVA after discount
+    let newTotalTax = 0;
+    for (const item of invoice.items) {
+      const quantity = item.quantity || 0;
+      const priceTTC = item.price || 0;
+      const tvaRate = Number(item.tva ?? item.product?.tva ?? 0);
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineHT = priceHT * quantity;
+      const share = totalHT > 0 ? lineHT / totalHT : 0; // Share of this line in total HT
+      const lineHTAfterDiscount = htAfterDiscount * share;
+      newTotalTax += lineHTAfterDiscount * (tvaRate / 100);
+    }
+
+    // Final TTC is HT after discount plus new TVA amount
+    const finalTTC = htAfterDiscount + newTotalTax;
+    
+    return { 
+      totalHT, 
+      discountAmount, 
+      totalTax: newTotalTax,
+      totalTTC: finalTTC,
+      htAfterDiscount
+    };
+  };
+
   // Print receipt function - same as SalesInterface
   const printReceipt = async (invoice: ISale) => {
     const receiptWindow = window.open("", "_blank");
@@ -61,264 +115,318 @@ const SalesInvoices = () => {
     // Use the actual logo file from public directory
     const finalLogoUrl = logoUrl;
 
+    // Calculate totals
+    const { totalHT, discountAmount, totalTax, totalTTC, htAfterDiscount } = calculateTotalsWithDiscount(invoice);
+    
+    // Prepare per-line computed values for printing
+    const printLines = invoice.items.map((item) => {
+      const qty = item.quantity || 0;
+      const priceTTC = item.price || 0; // Price includes TVA
+      const tvaRate = Number(item.product?.tva || 0);
+      
+      // Calculate HT prices
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineHT = priceHT * qty;
+      const lineTTC = priceTTC * qty;
+      
+      // Calculate this line's share of the discount
+      const share = totalHT > 0 ? lineHT / totalHT : 0;
+      const lineHTAfterDiscount = (totalHT - discountAmount) * share;
+      const lineTax = lineHTAfterDiscount * (tvaRate / 100);
+      const lineTTCAfterDiscount = lineHTAfterDiscount + lineTax;
+      
+      return {
+        ref: item.product?.ref || "-",
+        name: item.product?.name || "Unknown Product",
+        quantity: qty,
+        unitPrice: priceTTC,
+        lineHT: lineHTAfterDiscount,
+        tvaRate,
+        lineTTC: lineTTCAfterDiscount,
+      };
+    });
+
     const receiptHTML = `
     <html>
     <head>
       <title>Facture ProSoin - ${invoice.invoiceNumber}</title>
-      <style>
-        /* Optimized for A4 paper format (210mm x 297mm) */
-        @page {
-          size: A4;
-        }
+     <style>
+      /* Optimized for A4 paper format (210mm x 297mm) */
+      @page {
+        size: A4;
+      }
 
+      body {
+        font-family: 'Arial', sans-serif;
+        background: #f0f2f5;
+        padding: 0;
+        margin: 0;
+        width: 330mm;
+        min-height: 297mm;
+        position: relative;
+        font-size: 14px; /* Reduced base font size for better A4 fit */
+      }
+
+      /* Adjusted watermark for A4 dimensions */
+      body::before {
+        content: "";
+        position: fixed;
+        top: 40%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: url('${finalLogoUrl}') no-repeat center center;
+        background-size: 200px; /* Smaller watermark for A4 */
+        opacity: 0.03;
+        width: 400px;
+        height: 400px;
+        z-index: 0;
+      }
+
+      /* Optimized container for A4 with proper spacing */
+      .invoice-container {
+        background: white;
+        padding: 15mm 20mm;
+        margin: 0;
+        border-radius: 0;
+        box-shadow: none;
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        min-height: 267mm; /* A4 height minus margins */
+        width: 200mm; /* A4 width minus margins */
+      }
+
+      /* Compact header for A4 */
+      .header {
+        display: flex;
+        align-items: left;
+        justify-content: center;
+        flex-direction: column;
+        border-bottom: 2px solid #0d6efd;
+        padding-bottom: 8mm;
+        margin-bottom: 8mm;
+        position: relative;
+      }
+      .header img.header-logo {
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 90px; /* Smaller logo for A4 */
+        width: 90px;
+        border: 1px solid #ddd;
+      }
+      .store-info {
+        text-align: left;
+      }
+      .store-info h2 {
+        color: #0d6efd;
+        margin: 2px 0;
+        font-size: 18px; /* Smaller title for A4 */
+      }
+      .store-info p {
+        margin: 1px 0;
+        font-size: 11px;
+        color: #555;
+      }
+
+      /* Compact info section for A4 */
+      .info-section {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8mm;
+        margin-bottom: 6mm;
+        font-size: 12px;
+        background: #f8f9fa;
+        padding: 8px 12px;
+        border-radius: 4px;
+      }
+      .info-col-title {
+        margin: 0 0 4px 0;
+        color: #0d6efd;
+        font-weight: 600;
+      }
+
+      /* Table optimized for A4 with proper page breaks */
+      .invoice-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+        margin: 5mm 0;
+        font-size: 11px; /* Smaller font for better fit */
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        page-break-inside: auto;
+      }
+      .invoice-table thead {
+        display: table-header-group;
+      }
+      .invoice-table tfoot {
+        display: table-footer-group;
+      }
+      .invoice-table thead th {
+        background-color: #0d6efd;
+        color: white;
+        padding: 8px 6px; /* Reduced padding for A4 */
+        text-align: center;
+        font-weight: 600;
+        border: none;
+        font-size: 11px;
+      }
+      .invoice-table tbody td {
+        padding: 6px 4px; /* Reduced padding for A4 */
+        border-bottom: 1px solid #e0e0e0;
+        text-align: center;
+        vertical-align: middle;
+        page-break-inside: avoid;
+      }
+      .invoice-table tbody tr:last-child td {
+        border-bottom: none;
+      }
+      .invoice-table tbody tr:hover {
+        background-color: #f8f9fa;
+      }
+      .invoice-table tfoot td {
+        padding: 8px 6px;
+        font-weight: bold;
+        background: #f8f9fa;
+        border-top: 2px solid #0d6efd;
+        border-bottom: none;
+        font-size: 12px;
+      }
+      .invoice-table .subtotal-spacer td {
+        padding: 8mm 0 2mm 0; /* space between body and footer */
+        border: none;
+        background: transparent;
+      }
+      .invoice-table .total-label {
+        text-align: right;
+        padding-right: 10px;
+      }
+      .invoice-table .total-value {
+        font-size: 13px;
+        color: #0d6efd;
+      }
+      .price-cell {
+        font-family: 'Courier New', monospace;
+        font-weight: 500;
+      }
+      .invoice-table tbody tr:nth-child(even) {
+        background-color: #f9f9f9;
+      }
+      /* Spacer row style to create space between body and tfoot */
+      .spacer-row td {
+        padding: 6mm 0 !important;
+        border: none !important;
+        background: transparent !important;
+      }
+
+      /* Signatures optimized for A4 bottom */
+      .signature-container {
+        margin-top: 10mm;
+        display: flex;
+        justify-content: space-between;
+        page-break-inside: avoid;
+      }
+      .signature-box {
+        width: 70mm; /* A4-appropriate width */
+        height: 20mm;
+        border: 1px dashed #ccc;
+        border-radius: 3px;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: #666;
+        background: #f8f9fa;
+      }
+
+      /* Footer positioned for A4 bottom */
+      .footer {
+        margin-top: auto;
+        border-top: 2px solid #0d6efd;
+        padding-top: 8px;
+        display: flex;
+        justify-content: space-around;
+        font-size: 10px;
+        color: #555;
+        background: #f8f9fa;
+        padding: 8px;
+        border-radius: 4px;
+        page-break-inside: avoid;
+      }
+
+      /* Enhanced print styles for A4 */
+      @media print {
         body {
-          font-family: 'Arial', sans-serif;
-          background: #f0f2f5;
-          padding: 0;
-          margin: 0;
-          width: 330mm;
-          min-height: 297mm;
-          position: relative;
-          font-size: 14px;
+          background: none !important;
+          padding: 0 !important;
+          margin: 0 !important;
+          width: 210mm !important;
+          font-size: 11px !important;
         }
-
-        /* Adjusted watermark for A4 dimensions */
-        body::before {
-          content: "";
-          position: fixed;
-          top: 40%;
-          left: 50%;
-          transform: translate(-50%, -50%);
-          background: url('${finalLogoUrl}') no-repeat center center;
-          background-size: 200px;
-          opacity: 0.03;
-          width: 400px;
-          height: 400px;
-          z-index: 0;
-        }
-
-        /* Optimized container for A4 with proper spacing */
+        
         .invoice-container {
-          background: white;
-          padding: 15mm 20mm;
-          margin: 0;
-          border-radius: 0;
-          box-shadow: none;
-          position: relative;
-          z-index: 1;
-          display: flex;
-          flex-direction: column;
-          min-height: 267mm;
-          width: 200mm;
+          background: white !important;
+          padding: 15mm 20mm !important;
+          border-radius: 0 !important;
+          box-shadow: none !important;
+          position: relative !important;
+          z-index: 1 !important;
+          display: flex !important;
+          flex-direction: column !important;
+          min-height: 267mm !important;
+          width: 170mm !important;
+          margin: 0 !important;
         }
-
-        /* Compact header for A4 */
-        .header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          border-bottom: 2px solid #0d6efd;
-          padding-bottom: 10mm;
-          margin-bottom: 8mm;
+        
+        body::before {
+          display: none !important;
         }
-        .header img {
-          height: 100px;
-          width: 100px;
-          border: 1px solid #ddd;
+        
+        .signature-container, .footer {
+          page-break-inside: avoid !important;
         }
-        .store-info {
-          text-align: right;
-        }
-        .store-info h2 {
-          color: #0d6efd;
-          margin: 0;
-          font-size: 20px;
-        }
-        .store-info p {
-          margin: 1px 0;
-          font-size: 11px;
-          color: #555;
-        }
-
-        /* Compact info section for A4 */
-        .info-section {
-          display: flex;
-          justify-content: space-between;
-          margin-bottom: 6mm;
-          font-size: 12px;
-          background: #f8f9fa;
-          padding: 8px 12px;
-          border-radius: 4px;
-        }
-        .info-section div {
-          width: 48%;
-        }
-
-        /* Table optimized for A4 with proper page breaks */
+        
         .invoice-table {
-          width: 100%;
-          border-collapse: separate;
-          border-spacing: 0;
-          margin: 5mm 0;
-          font-size: 11px;
-          box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-          page-break-inside: auto;
+          page-break-inside: auto !important;
         }
+        
         .invoice-table thead {
-          display: table-header-group;
+          display: table-header-group !important;
         }
+        
         .invoice-table tfoot {
-          display: table-footer-group;
+          display: table-footer-group !important;
         }
-        .invoice-table thead th {
-          background-color: #0d6efd;
-          color: white;
-          padding: 8px 6px;
-          text-align: center;
-          font-weight: 600;
-          border: none;
-          font-size: 11px;
+        
+        /* Ensure proper page breaks for long tables */
+        .invoice-table tbody tr {
+          page-break-inside: avoid !important;
         }
-        .invoice-table tbody td {
-          padding: 6px 4px;
-          border-bottom: 1px solid #e0e0e0;
-          text-align: center;
-          vertical-align: middle;
-          page-break-inside: avoid;
-        }
-        .invoice-table tbody tr:last-child td {
-          border-bottom: none;
-        }
-        .invoice-table tbody tr:hover {
-          background-color: #f8f9fa;
-        }
-        .invoice-table tfoot td {
-          padding: 8px 6px;
-          font-weight: bold;
-          background: #f8f9fa;
-          border-top: 2px solid #0d6efd;
-          border-bottom: none;
-          font-size: 12px;
-        }
-        .invoice-table .total-label {
-          text-align: right;
-          padding-right: 10px;
-        }
-        .invoice-table .total-value {
-          font-size: 13px;
-          color: #0d6efd;
-        }
-        .price-cell {
-          font-family: 'Courier New', monospace;
-          font-weight: 500;
-        }
-        .invoice-table tbody tr:nth-child(even) {
-          background-color: #f9f9f9;
-        }
-
-        /* Signatures optimized for A4 bottom */
-        .signature-container {
-          margin-top: 10mm;
-          display: flex;
-          justify-content: space-between;
-          page-break-inside: avoid;
-        }
-        .signature-box {
-          width: 70mm;
-          height: 20mm;
-          border: 1px dashed #ccc;
-          border-radius: 3px;
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 10px;
-          color: #666;
-          background: #f8f9fa;
-        }
-
-        /* Footer positioned for A4 bottom */
-        .footer {
-          margin-top: auto;
-          border-top: 2px solid #0d6efd;
-          padding-top: 8px;
-          display: flex;
-          justify-content: space-around;
-          font-size: 10px;
-          color: #555;
-          background: #f8f9fa;
-          padding: 8px;
-          border-radius: 4px;
-          page-break-inside: avoid;
-        }
-
-        /* Enhanced print styles for A4 */
-        @media print {
-          body {
-            background: none !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            width: 210mm !important;
-            font-size: 11px !important;
-          }
-          
-          .invoice-container {
-            background: white !important;
-            padding: 15mm 20mm !important;
-            border-radius: 0 !important;
-            box-shadow: none !important;
-            position: relative !important;
-            z-index: 1 !important;
-            display: flex !important;
-            flex-direction: column !important;
-            min-height: 267mm !important;
-            width: 170mm !important;
-            margin: 0 !important;
-          }
-          
-          body::before {
-            display: none !important;
-          }
-          
-          .signature-container, .footer {
-            page-break-inside: avoid !important;
-          }
-          
-          .invoice-table {
-            page-break-inside: auto !important;
-          }
-          
-          .invoice-table thead {
-            display: table-header-group !important;
-          }
-          
-          .invoice-table tfoot {
-            display: table-footer-group !important;
-          }
-          
-          .invoice-table tbody tr {
-            page-break-inside: avoid !important;
-          }
-        }
-      </style>
+      }
+    </style>
     </head>
     <body>
       <div class="invoice-container">
 
         <!-- Header -->
-        <div class="header">
-          <img src="${finalLogoUrl}" alt="ProSoin Logo" />
-          <div class="store-info">
-            <h2>ProSoin</h2>
-            <p>Santé et Bien-être</p>
-            <p>Gabès, Tunisie</p>
-          </div>
+      <div class="header">
+        <img src="${finalLogoUrl}" alt="ProSoin Logo" class="header-logo" />
+        <div class="store-info">
+          <h2>ProSoin - Matériel Médical & Paramédical</h2>
+          <p>Vente et location d'équipements médicaux et paramédicaux essentiels.</p>
+          <p><strong>Tél:</strong> +216 57 183 366 / +216 57 183 367</p>
+          <p><strong>Adresse :</strong> Avenue Habib Bourguiba Ghannouch Gabès, Tunisia</p>
+          <p><strong>Site web :</strong> www.prosoin.com</p>
         </div>
+      </div>
 
         <!-- Info Section -->
         <div class="info-section">
           <div>
             <p><strong>Client :</strong> ${invoice.customer?.name || "____________________"}</p>
+            <p><strong>MF :</strong> ____________________</p>
             <p><strong>Téléphone :</strong> ${invoice.customer?.phone || "____________________"}</p>
           </div>
           <div style="text-align:right;">
@@ -333,55 +441,59 @@ const SalesInvoices = () => {
             <tr>
               <th>Réf</th>
               <th>Article</th>
+              <th>Prix U. TTC</th>
               <th>Qté</th>
-              <th>Prix (DT)</th>
-              <th>Total (DT)</th>
+              <th>TVA %</th>
+              <th>Total HT</th>
+              <th>Total TTC</th>
             </tr>
           </thead>
           <tbody>
-            ${(invoice.items || [])
-              .map(
-                (item) => `
+            ${printLines.map(line => `
               <tr>
-                <td>${item.product?.ref || "-"}</td>
-                <td style="text-align: left;">${item.product?.name || "Unknown Product"}</td>
-                <td>${item.quantity || 0}</td>
-                <td class="price-cell">${(item.price || 0).toFixed(2)}</td>
-                <td class="price-cell">${((item.price || 0) * (item.quantity || 0)).toFixed(2)}</td>
+                <td>${line.ref}</td>
+                <td style="text-align: left;">${line.name}</td>
+                <td class="price-cell">${line.unitPrice.toFixed(2)}</td>
+                <td>${line.quantity}</td>
+                <td>${line.tvaRate.toFixed(2)}</td>
+                <td class="price-cell">${line.lineHT.toFixed(2)}</td>
+                <td class="price-cell">${line.lineTTC.toFixed(2)}</td>
               </tr>
-            `,
-              )
-              .join("")}
+            `).join("")}
           </tbody>
           <tfoot>
             <tr>
-              <td colspan="4" class="total-label">Total TTC</td>
-              <td class="total-value price-cell">${invoice.total.toFixed(2)} DT</td>
+              <td colspan="5" class="total-label">Total HT</td>
+              <td colspan="2" class="total-value price-cell">${totalHT.toFixed(2)} DT</td>
             </tr>
             ${invoice.discount && invoice.discount !== 0 ? `
             <tr>
-              <td colspan="4" class="total-label">Remise (${invoice.discount}%)</td>
-              <td class="total-value price-cell">-${(invoice.total * (invoice.discount / 100)).toFixed(2)} DT</td>
+              <td colspan="5" class="total-label">Remise (${invoice.discount}%)</td>
+              <td colspan="2" class="total-value price-cell">-${discountAmount.toFixed(2)} DT</td>
             </tr>
             <tr>
-              <td colspan="4" class="total-label">Total après remise</td>
-              <td class="total-value price-cell">${(invoice.total * (1 - invoice.discount / 100)).toFixed(2)} DT</td>
+              <td colspan="5" class="total-label">Total HT après remise</td>
+              <td colspan="2" class="total-value price-cell">${htAfterDiscount.toFixed(2)} DT</td>
             </tr>
             ` : ''}
+            <tr>
+              <td colspan="5" class="total-label">TVA</td>
+              <td colspan="2" class="total-value price-cell">${totalTax.toFixed(2)} DT</td>
+            </tr>
+            <tr>
+              <td colspan="5" class="total-label">Total TTC</td>
+              <td colspan="2" class="total-value price-cell">${totalTTC.toFixed(2)} DT</td>
+            </tr>
           </tfoot>
         </table>
 
-        <!-- Signatures -->
-        <div class="signature-container">
-          <div class="signature-box">Signature Vendeur</div>
-          <div class="signature-box">Signature Client</div>
-        </div>
+     
 
         <!-- Footer -->
         <div class="footer">
-          <div>📧 contact@prosoin.com</div>
-          <div>📞 +216 00 000 000</div>
-          <div>📍 Gabès, Tunisie</div>
+          <div> 🌐 www.prosoin.com</div>
+          <div>📞 +216 57 183 366</div>
+          <div>📍 Avenue Habib Bourguiba Ghannouch Gabès, Tunisia</div>
         </div>
 
       </div>
@@ -584,8 +696,19 @@ const SalesInvoices = () => {
                         </div>
                       </div>
                       <div className="text-left">
-                        <div className="text-lg font-bold text-blue-600">
-                          {invoice.total.toFixed(2)} {t("common.currency")}
+                        <div className="flex flex-col">
+                          <div className="text-lg font-bold text-blue-600">
+                            {(() => {
+                              const totals = calculateTotalsWithDiscount(invoice);
+                              return totals.totalTTC.toFixed(2);
+                            })()} {t("common.currency")}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            TVA: {(() => {
+                              const totals = calculateTotalsWithDiscount(invoice);
+                              return totals.totalTax.toFixed(2);
+                            })()} {t("common.currency")}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <Button variant="ghost" size="sm" className="mt-1">
@@ -753,66 +876,107 @@ const SalesInvoices = () => {
                         {t("products.productName")}
                       </TableHead>
                       <TableHead className="text-right">
-                        {t("products.price")}
+                        {t("products.price")} TTC
                       </TableHead>
                       <TableHead className="text-right">
                         {t("sales.quantity")}
                       </TableHead>
+                      <TableHead className="text-right">TVA (%)</TableHead>
                       <TableHead className="text-right">
-                        {t("invoices.totalPrice")}
+                        Total HT
                       </TableHead>
+                      <TableHead className="text-right">Total TTC</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {(selectedInvoice.items || []).map((item) => (
-                      <TableRow key={item.product?._id || "unknown"}>
-                        <TableCell className="font-medium">
-                          {item.product?.name || t("common.unknown")}
-                        </TableCell>
-                        <TableCell>
-                          {(item.price || 0).toFixed(2)} {t("common.currency")}
-                        </TableCell>
-                        <TableCell>{item.quantity || 0}</TableCell>
-                        <TableCell className="font-semibold">
-                          {((item.price || 0) * (item.quantity || 0)).toFixed(
-                            2
-                          )}{" "}
-                          {t("common.currency")}
-                        </TableCell>
-                      </TableRow>
-                    ))}
+                    {(selectedInvoice.items || []).map((item) => {
+                      const qty = item.quantity || 0;
+                      const unit = item.price || 0;
+                      const lineHT = unit * qty;
+                      const tvaRate = (item.tva ?? item.product?.tva ?? 0) as number;
+                      const sumHT =
+                        (selectedInvoice.totalHT ?? selectedInvoice.total ??
+                          (selectedInvoice.items || []).reduce(
+                            (s, it) => s + (it.price || 0) * (it.quantity || 0),
+                            0
+                          )) || 0;
+                      const discountAmount =
+                        selectedInvoice.discountAmount ?? (() => {
+                          const percent = selectedInvoice.discount || 0;
+                          const htBase = (selectedInvoice.totalHT ?? selectedInvoice.total) || 0;
+                          return (htBase * percent) / 100;
+                        })();
+                      const share = sumHT > 0 ? lineHT / sumHT : 0;
+                      const lineDiscount = discountAmount * share;
+                      const baseAfterDiscount = lineHT - lineDiscount;
+                      const lineTax = (baseAfterDiscount * (Number(tvaRate) || 0)) / 100;
+                      const lineTTC = baseAfterDiscount + lineTax;
+                      return (
+                        <TableRow key={item.product?._id || "unknown"}>
+                          <TableCell className="font-medium">
+                            {item.product?.name || t("common.unknown")}
+                          </TableCell>
+                          <TableCell>
+                            {unit.toFixed(2)} {t("common.currency")}
+                          </TableCell>
+                          <TableCell>{qty}</TableCell>
+                          <TableCell className="text-right">{Number(tvaRate).toFixed(2)}</TableCell>
+                          <TableCell className="font-semibold">
+                            {lineHT.toFixed(2)} {t("common.currency")}
+                          </TableCell>
+                          <TableCell className="font-semibold">
+                            {lineTTC.toFixed(2)} {t("common.currency")}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
                   </TableBody>
                 </Table>
               </div>
 
-              {/* Invoice Total */}
-              <div className="border-t pt-4">
-                <div className="flex justify-between items-center text-l font-bold">
-                  <span>{t("sales.total")}:</span>
-                  <span className="text-blue-600">
-                    {selectedInvoice.total.toFixed(2)} {t("common.currency")}
-                  </span>
-                </div>
-                {selectedInvoice.discount && selectedInvoice.discount !== 0 ? (
-                  <div className="flex justify-between items-center text-l font-bold">
-                    <span>{t("sales.discount")}:</span>
-                    <span className="text-red-600">
-                      {selectedInvoice.discount.toFixed(2)} %
-                    </span>
-                  </div>
-                ) : null}
-                {selectedInvoice.discount && selectedInvoice.discount !== 0 ? (
-                  <div className="flex justify-between items-center text-xl font-bold">
-                    <span>{t("sales.totalAfterDiscount")}:</span>
-                    <span className="text-green-600">
-                      {(
-                        selectedInvoice.total *
-                        (1 - selectedInvoice.discount / 100)
-                      ).toFixed(2)}{" "}
-                      {t("common.currency")}
-                    </span>
-                  </div>
-                ) : null}
+              {/* Invoice Totals (HT, Remise, Taxes, TTC) */}
+              <div className="border-t pt-4 space-y-2">
+                {(() => {
+                  const totals = calculateTotalsWithDiscount(selectedInvoice);
+                  return (
+                    <>
+                      <div className="flex justify-between items-center text-l font-semibold">
+                        <span>Total HT:</span>
+                        <span>
+                          {totals.totalHT.toFixed(2)} {t("common.currency")}
+                        </span>
+                      </div>
+                      {selectedInvoice.discount && selectedInvoice.discount > 0 && (
+                        <>
+                          <div className="flex justify-between items-center text-l font-semibold">
+                            <span>Remise ({Number(selectedInvoice.discount).toFixed(2)}%):</span>
+                            <span className="text-red-600">
+                              -{totals.discountAmount.toFixed(2)} {t("common.currency")}
+                            </span>
+                          </div>
+                          <div className="flex justify-between items-center text-l font-semibold">
+                            <span>Total HT après remise:</span>
+                            <span>
+                              {totals.htAfterDiscount.toFixed(2)} {t("common.currency")}
+                            </span>
+                          </div>
+                        </>
+                      )}
+                      <div className="flex justify-between items-center text-l font-semibold">
+                        <span>Taxes (TVA):</span>
+                        <span className="text-amber-600">
+                          {totals.totalTax.toFixed(2)} {t("common.currency")}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-xl font-bold">
+                        <span>Total TTC:</span>
+                        <span className="text-blue-600">
+                          {totals.totalTTC.toFixed(2)} {t("common.currency")}
+                        </span>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Actions */}

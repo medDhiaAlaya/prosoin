@@ -247,7 +247,11 @@ const SalesCheckout = ({
           <Button
             variant="outline"
             className="border-blue-200 hover:bg-blue-50"
-            onClick={() => onConfirm(getSelectedCustomer(), true)}
+            onClick={() => onConfirm({
+              ...getSelectedCustomer(),
+              paymentMethod,
+              discount,
+            }, true)}
             disabled={isLoading}
           >
             <Printer className="w-4 h-4 mr-2" />

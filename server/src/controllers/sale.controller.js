@@ -26,8 +26,9 @@ const saleController = {
       );
       const invoiceNumber = `INV-${String(counter.seq).padStart(6, "0")}`;
 
-      // Calculate total and update stock
-      let total = 0;
+      // Calculate totals and update stock
+      let total = 0; // legacy
+      let totalHT = 0;
       const processedItems = [];
 
       for (const item of items) {
@@ -43,17 +44,20 @@ const saleController = {
         product.stock -= item.quantity;
         await product.save();
 
-        // Add to processed items
+        // Add to processed items with TVA snapshot
         processedItems.push({
           product: item.product,
           quantity: item.quantity,
           price: product.price,
+          tva: product.tva || 0,
         });
 
-        // Calculate total
-        total += product.price * item.quantity;
+        // Accumulate totals
+        const lineHT = product.price * item.quantity;
+        totalHT += lineHT;
+        total += lineHT;
       }
-      // Create customer if provided
+      // Create or reuse customer if provided
       let customer = null;
       if (customerId) {
         customer =  await CustomerModel.findById(customerId);
@@ -61,19 +65,45 @@ const saleController = {
           throw new NotFoundError("Customer not found");
         }
       } else if (name || email || phone) {
-        customer = await CustomerModel.create({
-          name,
-          email,
-          phone,
-          seller: userId,
-        });
+        // Reuse existing by email if provided
+        if (email) {
+          const existing = await CustomerModel.findOne({ email });
+          if (existing) {
+            customer = existing;
+          }
+        }
+        if (!customer) {
+          const newCustomerData = { seller: userId };
+          if (name) newCustomerData.name = name;
+          if (email) newCustomerData.email = email;
+          if (phone) newCustomerData.phone = phone;
+          customer = await CustomerModel.create(newCustomerData);
+        }
       }
+
+      const discountPercent = Number(discount) || 0;
+      const discountAmount = (totalHT * discountPercent) / 100;
+      // Distribute discount proportionally across items to compute tax
+      let totalTax = 0;
+      for (const it of processedItems) {
+        const lineHT = it.price * it.quantity;
+        const lineShare = totalHT > 0 ? lineHT / totalHT : 0;
+        const lineDiscount = discountAmount * lineShare;
+        const lineBaseAfterDiscount = lineHT - lineDiscount;
+        const lineTax = (lineBaseAfterDiscount * (it.tva || 0)) / 100;
+        totalTax += lineTax;
+      }
+      const totalTTC = (totalHT - discountAmount) + totalTax;
 
       const sale = await Sale.create({
         invoiceNumber,
         items: processedItems,
-        total,
-        discount,
+        total, // legacy
+        totalHT,
+        discount: discountPercent,
+        discountAmount,
+        totalTax,
+        totalTTC,
         seller: userId,
         customer: customer ? customer._id : null,
         paymentMethod,
@@ -201,7 +231,7 @@ const saleController = {
         .populate("items.product", "name price")
         .populate("customer");
 
-      const totalSales = sales.reduce((acc, sale) => acc + sale.total, 0);
+      const totalSales = sales.reduce((acc, sale) => acc + (sale.totalTTC || sale.total || 0), 0);
       const totalItems = sales.reduce(
         (acc, sale) =>
           acc + sale.items.reduce((sum, item) => sum + item.quantity, 0),

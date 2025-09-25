@@ -220,7 +220,7 @@ const ProductManagement = () => {
     setEditingProduct(null)
     setFormData({ name: "", price: "", purchasePrice: "", profitPercent: "20", tva: "0", stock: "", barcode: "", ref: "" })
     // Generate unique reference for new products
-    setTimeout(() => generateUniqueRef(), 0)
+    // setTimeout(() => generateUniqueRef(), 0)
   }
 
   const handleDeleteClick = (product: IProduct) => {

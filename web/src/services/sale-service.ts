@@ -5,6 +5,7 @@ export interface ISaleItem {
   product: string;
   quantity: number;
   price: number;
+  tva?: number; // percentage (e.g., 19)
 }
 
 export interface ICreateSale {
@@ -19,11 +20,16 @@ export interface ISale {
     product: IProduct;
     quantity: number;
     price: number;
+    tva?: number;
   }>;
   total: number;
+  totalHT?: number;
   seller: any;
   customer: any;
   discount?: number;
+  discountAmount?: number;
+  totalTax?: number;
+  totalTTC?: number;
   paymentMethod: string;
   status: 'completed' | 'cancelled' | 'pending';
   createdAt: string;

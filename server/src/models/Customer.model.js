@@ -9,8 +9,8 @@ const customerSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      unique: [true, "Email already exists!"],
-      default: "",
+    unique: [true, "Email already exists!"],
+    sparse: true,
     },
     phone: {
       type: String,

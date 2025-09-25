@@ -157,6 +157,58 @@ const SalesInterface = ({ setActiveTab }) => {
     return cart.reduce((total, item) => total + item.price * item.quantity, 0);
   };
 
+  // Live totals with discount and TVA
+  const calculateTotalsWithDiscount = (discountPercent: number) => {
+    // Since price includes TVA, we need to calculate backwards
+    let totalTTC = 0;
+    let totalHT = 0;
+    let totalTax = 0;
+
+    // Calculate for each item since they might have different TVA rates
+    for (const it of cart) {
+      const quantity = it.quantity || 0;
+      const priceTTC = it.price || 0; // This is the price including TVA
+      const tvaRate = Number(it.tva || 0);
+      
+      // Calculate HT price: HT = TTC / (1 + TVA%)
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineTTC = priceTTC * quantity;
+      const lineHT = priceHT * quantity;
+      const lineTax = lineTTC - lineHT;
+
+      totalTTC += lineTTC;
+      totalHT += lineHT;
+      totalTax += lineTax;
+    }
+
+    // Apply discount to HT amount
+    const discountAmount = (totalHT * (Number(discountPercent) || 0)) / 100;
+    const htAfterDiscount = totalHT - discountAmount;
+    
+    // Recalculate TVA after discount
+    let newTotalTax = 0;
+    for (const it of cart) {
+      const quantity = it.quantity || 0;
+      const priceTTC = it.price || 0;
+      const tvaRate = Number(it.tva || 0);
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineHT = priceHT * quantity;
+      const share = lineHT / totalHT; // Share of this line in total HT
+      const lineHTAfterDiscount = htAfterDiscount * share;
+      newTotalTax += lineHTAfterDiscount * (tvaRate / 100);
+    }
+
+    // Final TTC is HT after discount plus new TVA amount
+    const finalTTC = htAfterDiscount + newTotalTax;
+    
+    return { 
+      totalHT, 
+      discountAmount, 
+      totalTax: newTotalTax,
+      totalTTC: finalTTC 
+    };
+  };
+
   const handleCheckout = async (data, printInvoice = false) => {
     try {
       setIsLoading(true);
@@ -169,24 +221,23 @@ const SalesInterface = ({ setActiveTab }) => {
         ...data,
       };
       const response = await saleService.create(saleData);
+      const amount = (response?.sale?.totalTTC ?? response?.sale?.total ?? calculateTotal()).toFixed(2);
       toast({
         title: t("sales.saleCompleted"),
-        description: `${t("sales.invoiceNumber")}: ${
-          response.sale.invoiceNumber
-        } - ${t("sales.amount")}: ${calculateTotal().toFixed(2)} ${t(
-          "common.currency"
-        )}`,
+        description: `${t("sales.invoiceNumber")}: ${response.sale.invoiceNumber} - ${t("sales.amount")}: ${amount} ${t("common.currency")}`,
       });
       setCheckoutOpen(false);
       await loadProducts();
       setCart([]);
       if (printInvoice) {
-        await printReceipt(data?.customer);
+        await printReceipt(data?.customer, response?.sale, data?.discount);
       }
-    } catch (error) {
+    } catch (error: unknown) {
+      const err = error as { response?: { data?: { message?: string } } ; message?: string };
+      const serverMsg = err?.response?.data?.message || err?.message || t("errors.tryAgain");
       toast({
         title: t("errors.general"),
-        description: t("errors.tryAgain"),
+        description: serverMsg,
         variant: "destructive",
       });
       console.error("Checkout error:", error);
@@ -195,10 +246,79 @@ const SalesInterface = ({ setActiveTab }) => {
     }
   };
 
-  const printReceipt = async (customer) => {
+  const printReceipt = async (customer, sale, discountFromCheckout) => {
     const receiptWindow = window.open("", "_blank");
     const now = new Date();
     const total = calculateTotal();
+    // Compute HT/discount/TVA/TTC locally
+    let totalTTC = 0;
+    let totalHT = 0;
+    let totalTax = 0;
+
+    // Calculate backwards from TTC prices
+    for (const it of (cart || [])) {
+      const quantity = it.quantity || 0;
+      const priceTTC = it.price || 0; // Price includes TVA
+      const tvaRate = Number((it.tva ?? 0) || 0);
+      
+      // Calculate HT price: HT = TTC / (1 + TVA%)
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineTTC = priceTTC * quantity;
+      const lineHT = priceHT * quantity;
+      const lineTax = lineTTC - lineHT;
+
+      totalTTC += lineTTC;
+      totalHT += lineHT;
+      totalTax += lineTax;
+    }
+
+    const discountPercent = Number(discountFromCheckout ?? sale?.discount ?? 0) || 0;
+    const discountAmount = (totalHT * discountPercent) / 100;
+    const htAfterDiscount = totalHT - discountAmount;
+    
+    // Recalculate TVA after discount
+    let newTotalTax = 0;
+    for (const it of (cart || [])) {
+      const quantity = it.quantity || 0;
+      const priceTTC = it.price || 0;
+      const tvaRate = Number((it.tva ?? 0) || 0);
+      const priceHT = priceTTC / (1 + tvaRate / 100);
+      const lineHT = priceHT * quantity;
+      const share = lineHT / totalHT; // Share of this line in total HT
+      const lineHTAfterDiscount = htAfterDiscount * share;
+      newTotalTax += lineHTAfterDiscount * (tvaRate / 100);
+    }
+
+    totalTax = newTotalTax;
+    const finalTTC = htAfterDiscount + totalTax;
+
+    // Prepare per-line computed values for printing
+    const printLines = (cart || []).map((it) => {
+      const qty = it.quantity || 0;
+      const unitTTC = it.price || 0; // Price includes TVA
+      const tvaRate = Number((it.tva ?? 0) || 0);
+      
+      // Calculate HT prices
+      const unitHT = unitTTC / (1 + tvaRate / 100);
+      const lineHT = unitHT * qty;
+      const lineTTC = unitTTC * qty;
+      
+      // Calculate discount for this line
+      const share = totalHT > 0 ? lineHT / totalHT : 0;
+      const lineHTAfterDiscount = htAfterDiscount * share;
+      const lineTax = lineHTAfterDiscount * (tvaRate / 100);
+      const lineTTCAfterDiscount = lineHTAfterDiscount + lineTax;
+      
+      return {
+        ref: it.ref || "-",
+        name: it.name,
+        quantity: qty,
+        unitPrice: unitTTC,
+        lineHT: lineHTAfterDiscount,
+        tvaRate,
+        lineTTC: lineTTCAfterDiscount,
+      };
+    });
     
     // Get the current origin to create absolute URLs for the logo
     const origin = window.location.origin;
@@ -261,24 +381,29 @@ const SalesInterface = ({ setActiveTab }) => {
       /* Compact header for A4 */
       .header {
         display: flex;
-        align-items: center;
-        justify-content: space-between;
+        align-items: left;
+        justify-content: center;
+        flex-direction: column;
         border-bottom: 2px solid #0d6efd;
-        padding-bottom: 10mm;
+        padding-bottom: 8mm;
         margin-bottom: 8mm;
+        position: relative;
       }
-      .header img {
-        height: 100px; /* Smaller logo for A4 */
-        width: 100px;
+      .header img.header-logo {
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 90px; /* Smaller logo for A4 */
+        width: 90px;
         border: 1px solid #ddd;
       }
       .store-info {
-        text-align: right;
+        text-align: left;
       }
       .store-info h2 {
         color: #0d6efd;
-        margin: 0;
-        font-size: 20px; /* Smaller title for A4 */
+        margin: 2px 0;
+        font-size: 18px; /* Smaller title for A4 */
       }
       .store-info p {
         margin: 1px 0;
@@ -288,16 +413,19 @@ const SalesInterface = ({ setActiveTab }) => {
 
       /* Compact info section for A4 */
       .info-section {
-        display: flex;
-        justify-content: space-between;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8mm;
         margin-bottom: 6mm;
         font-size: 12px;
         background: #f8f9fa;
         padding: 8px 12px;
         border-radius: 4px;
       }
-      .info-section div {
-        width: 48%;
+      .info-col-title {
+        margin: 0 0 4px 0;
+        color: #0d6efd;
+        font-weight: 600;
       }
 
       /* Table optimized for A4 with proper page breaks */
@@ -346,6 +474,11 @@ const SalesInterface = ({ setActiveTab }) => {
         border-bottom: none;
         font-size: 12px;
       }
+      .invoice-table .subtotal-spacer td {
+        padding: 8mm 0 2mm 0; /* space between body and footer */
+        border: none;
+        background: transparent;
+      }
       .invoice-table .total-label {
         text-align: right;
         padding-right: 10px;
@@ -360,6 +493,12 @@ const SalesInterface = ({ setActiveTab }) => {
       }
       .invoice-table tbody tr:nth-child(even) {
         background-color: #f9f9f9;
+      }
+      /* Spacer row style to create space between body and tfoot */
+      .spacer-row td {
+        padding: 6mm 0 !important;
+        border: none !important;
+        background: transparent !important;
       }
 
       /* Signatures optimized for A4 bottom */
@@ -454,23 +593,29 @@ const SalesInterface = ({ setActiveTab }) => {
 
       <!-- Header -->
       <div class="header">
-        <img src="${finalLogoUrl}" alt="ProSoin Logo" />
+        <img src="${finalLogoUrl}" alt="ProSoin Logo" class="header-logo" />
         <div class="store-info">
-          <h2>ProSoin</h2>
-          <p>Santé et Bien-être</p>
-          <p>Gabès, Tunisie</p>
+          <h2>ProSoin - Matériel Médical & Paramédical</h2>
+          <p>Vente et location d'équipements médicaux et paramédicaux essentiels.</p>
+          <p><strong>Tél:</strong> +216 57 183 366 / +216 57 183 367</p>
+          <p><strong>Adresse :</strong> Avenue Habib Bourguiba Ghannouch Gabès, Tunisia</p>
+          <p><strong>Site web :</strong> www.prosoin.com</p>
         </div>
       </div>
 
       <!-- Info Section -->
       <div class="info-section">
         <div>
-          <p><strong>Client :</strong> ${customer?.name || "____________________"}</p>
+          <p class="info-col-title">Client</p>
+          <p><strong>Nom :</strong> ${customer?.name || "____________________"}</p>
+          <p><strong>Adresse :</strong> ${customer?.address || "____________________"}</p>
+          <p><strong>MF :</strong> ____________________</p>
           <p><strong>Téléphone :</strong> ${customer?.phone || "____________________"}</p>
         </div>
         <div style="text-align:right;">
+          <p class="info-col-title">Facture</p>
           <p><strong>Date :</strong> ${now.toLocaleString()}</p>
-          <p><strong>N° Facture :</strong></p>
+          <p><strong>N° Facture :</strong> ${sale?.invoiceNumber || ''}</p>
         </div>
       </div>
 
@@ -482,43 +627,56 @@ const SalesInterface = ({ setActiveTab }) => {
             <th>Article</th>
             <th>Qté</th>
             <th>Prix (DT)</th>
-            <th>Total (DT)</th>
+            <th>Total HT (DT)</th>
+            <th>TVA (%)</th>
+            <th>Total TTC (DT)</th>
           </tr>
         </thead>
         <tbody>
-          ${cart
+          ${printLines
             .map(
-              (item) => `
+              (line) => `
             <tr>
-              <td>${item.ref || "-"}</td>
-              <td style="text-align: left;">${item.name}</td>
-              <td>${item.quantity}</td>
-              <td class="price-cell">${item.price.toFixed(2)}</td>
-              <td class="price-cell">${(item.price * item.quantity).toFixed(2)}</td>
+              <td>${line.ref}</td>
+              <td style="text-align: left;">${line.name}</td>
+              <td>${line.quantity}</td>
+              <td class="price-cell">${line.unitPrice.toFixed(2)}</td>
+              <td class="price-cell">${line.lineHT.toFixed(2)}</td>
+              <td class="price-cell">${Number(line.tvaRate).toFixed(2)}</td>
+              <td class="price-cell">${line.lineTTC.toFixed(2)}</td>
             </tr>
           `,
             )
             .join("")}
+          <tr class="spacer-row"><td colspan="7"></td></tr>
         </tbody>
         <tfoot>
           <tr>
-            <td colspan="4" class="total-label">Total TTC</td>
-            <td class="total-value price-cell">${total.toFixed(2)} DT</td>
+            <td colspan="6" class="total-label">Total HT</td>
+            <td class="total-value price-cell">${totalHT.toFixed(2)} DT</td>
+          </tr>
+          <tr>
+            <td colspan="6" class="total-label">Remise${discountPercent ? ' (' + Number(discountPercent).toFixed(2) + '%)' : ''}</td>
+            <td class="total-value price-cell">${discountAmount.toFixed(2)} DT</td>
+          </tr>
+          <tr>
+            <td colspan="6" class="total-label">Taxes (TVA)</td>
+            <td class="total-value price-cell">${totalTax.toFixed(2)} DT</td>
+          </tr>
+          <tr>
+            <td colspan="6" class="total-label">Total TTC</td>
+            <td class="total-value price-cell">${totalTTC.toFixed(2)} DT</td>
           </tr>
         </tfoot>
       </table>
-
       <!-- Signatures -->
-      <div class="signature-container">
-        <div class="signature-box">Signature Vendeur</div>
-        <div class="signature-box">Signature Client</div>
-      </div>
 
       <!-- Footer -->
       <div class="footer">
-        <div>📧 contact@prosoin.com</div>
-        <div>📞 +216 00 000 000</div>
-        <div>📍 Gabès, Tunisie</div>
+      
+         <div> 🌐 www.prosoin.com</div>
+          <div>📞 +216 57 183 366</div>
+          <div>📍 Avenue Habib Bourguiba Ghannouch Gabès, Tunisia</div>
       </div>
 
     </div>
@@ -795,6 +953,21 @@ const SalesInterface = ({ setActiveTab }) => {
                       <span className="text-blue-600">
                         {calculateTotal().toFixed(2)} {t("common.currency")}
                       </span>
+                    </div>
+
+                    {/* Live HT/Discount/Tax/TTC Summary */}
+                    <div className="rounded-md border border-blue-100 bg-blue-50 p-3 space-y-1">
+                      {(() => {
+                        const discountPercent = 0; // updated from checkout modal on open if needed
+                        const { totalHT, discountAmount, totalTax, totalTTC } = calculateTotalsWithDiscount(discountPercent);
+                        return (
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between"><span>Total HT</span><span className="font-semibold">{totalHT.toFixed(2)} {t("common.currency")}</span></div>
+                            <div className="flex justify-between"><span>Taxes (TVA)</span><span className="font-semibold text-amber-600">{totalTax.toFixed(2)} {t("common.currency")}</span></div>
+                            <div className="flex justify-between text-base"><span>Total TTC</span><span className="font-bold text-blue-700">{totalTTC.toFixed(2)} {t("common.currency")}</span></div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     <div className="w-full">

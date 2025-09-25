@@ -21,11 +21,24 @@ const saleSchema = new mongoose.Schema({
       type: Number,
       required: true,
       min: 0
+    },
+    // TVA rate captured at time of sale (percentage, e.g., 19 for 19%)
+    tva: {
+      type: Number,
+      default: 0,
+      min: 0
     }
   }],
+  // Legacy: gross total before discount and taxes if previously used
   total: {
     type: Number,
     required: true,
+    min: 0
+  },
+  // New computed totals
+  totalHT: { // sum of line price * qty (hors taxes)
+    type: Number,
+    default: 0,
     min: 0
   },
   discount: {
@@ -33,6 +46,21 @@ const saleSchema = new mongoose.Schema({
     default: 0,
     min: 0,
     max: 100
+  },
+  discountAmount: { // absolute value of remise
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  totalTax: { // total TVA amount
+    type: Number,
+    default: 0,
+    min: 0
+  },
+  totalTTC: { // total to pay (TTC)
+    type: Number,
+    default: 0,
+    min: 0
   },
   
   seller: {
